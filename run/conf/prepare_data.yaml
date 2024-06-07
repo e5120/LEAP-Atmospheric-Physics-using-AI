@@ -1,0 +1,4 @@
+data_dir: /project/data/leap
+output_dir: ~
+prefix: processed_
+batch_size: 100000
