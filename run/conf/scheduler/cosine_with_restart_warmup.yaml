@@ -1,0 +1,6 @@
+name: get_cosine_with_hard_restarts_schedule_with_warmup
+params:
+  num_warmup_steps: 0
+  num_training_steps: -1
+  num_cycles: 1
+  last_epoch: -1

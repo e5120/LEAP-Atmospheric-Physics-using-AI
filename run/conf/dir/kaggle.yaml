@@ -1,0 +1,3 @@
+name: kaggle
+data_dir: /kaggle/working
+model_dir: /kaggle/input

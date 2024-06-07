@@ -1,0 +1,53 @@
+hydra:
+  job:
+    name: train
+    chdir: true
+  run:
+    dir: ${dir.model_dir}/${exp_name}/${dir_name}
+  sweep:
+    dir: ${dir.model_dir}/${exp_name}
+    subdir: run${hydra.job.num}
+
+defaults:
+  - _self_
+  - dir: local
+  - dataset: single_dataset
+  - model: ffn_model
+  - optimizer: adamw
+  - scheduler: constant
+
+# data_dir: /project/data/leap
+dir_name: single
+exp_name: dummy
+stage: train
+chunk_size: 5
+val_chunk_size: 1
+batch_size: 4096
+seed: 42
+num_workers: 5
+benchmark: False
+logger: False
+
+trainer:
+  max_epochs: 50
+  min_epochs: 200
+  enable_progress_bar: True
+  accelerator: auto
+  # precision: "16-mixed"
+  gradient_clip_val: ~
+  accumulate_grad_batches: 1
+  reload_dataloaders_every_n_epochs: 1
+  devices: [0]
+
+early_stopping:
+  monitor: "val_r2"
+  mode: "max"
+  patience: 3
+
+model_checkpoint:
+  save_weights_only: True
+  monitor: "val_r2"
+  mode: "max"
+  dirpath: True
+  save_top_k: 1
+  verbose: 1

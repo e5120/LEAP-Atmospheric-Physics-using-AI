@@ -1,0 +1,7 @@
+name: "FFNModel"
+params: {
+  input_size: -1,
+  output_size: -1,
+  hidden_sizes: [1024, 512, 256, 256, 512],
+  dropout: 0.1,
+}

@@ -1,0 +1,6 @@
+name: OneCycleLR
+params:
+  max_lr: 0.001
+  total_steps: -1
+  pct_start: 0.3
+  anneal_strategy: cos

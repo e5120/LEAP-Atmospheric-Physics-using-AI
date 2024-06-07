@@ -1,0 +1,3 @@
+name: local
+data_dir: /project/data/leap
+model_dir: /project/lb/output

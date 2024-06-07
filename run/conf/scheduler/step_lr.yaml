@@ -1,0 +1,4 @@
+name: StepLR
+params:
+  step_size: 300
+  gamma: 0.1
