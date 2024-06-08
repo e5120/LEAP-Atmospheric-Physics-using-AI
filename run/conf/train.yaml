@@ -14,14 +14,14 @@ defaults:
   - dataset: single_dataset
   - model: ffn_model
   - optimizer: adamw
-  - scheduler: constant
+  - scheduler: reduce_lr
 
-# data_dir: /project/data/leap
 dir_name: single
 exp_name: dummy
 stage: train
 chunk_size: 5
-val_chunk_size: 1
+val_chunk_size: 3
+scaler: standard  # [standard, robust]
 batch_size: 4096
 seed: 42
 num_workers: 5
@@ -29,11 +29,12 @@ benchmark: False
 logger: False
 
 trainer:
-  max_epochs: 50
+  max_epochs: 100
   min_epochs: 200
   enable_progress_bar: True
   accelerator: auto
   # precision: "16-mixed"
+  precision: 64
   gradient_clip_val: ~
   accumulate_grad_batches: 1
   reload_dataloaders_every_n_epochs: 1
