@@ -14,6 +14,6 @@ class BaseModel(nn.Module):
 
     def calculate_loss(self, batch):
         output = self.forward(batch)
-        loss = self.loss_fn(output["logits"], batch["labels"].float())
+        loss = self.loss_fn(output["logits"], batch["labels"])
         output["loss"] = loss
         return output

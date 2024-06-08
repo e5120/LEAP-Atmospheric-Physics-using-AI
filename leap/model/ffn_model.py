@@ -17,7 +17,7 @@ class FFNModel(BaseModel):
         self.layers = nn.Sequential(*layers)
 
     def forward(self, batch):
-        logits = self.layers(batch["input"].float())
+        logits = self.layers(batch["input"])
         return {
             "logits": logits,
         }
