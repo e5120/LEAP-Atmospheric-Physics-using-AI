@@ -4,8 +4,10 @@ import numpy as  np
 import polars as pl
 import lightning as L
 from torch.utils.data import DataLoader
+from tqdm.auto import tqdm
 
 import leap.dataset
+from leap.utils import normalize
 
 
 class LeapDataModule(L.LightningDataModule):
@@ -32,11 +34,13 @@ class LeapDataModule(L.LightningDataModule):
             for filename in self.val_files:
                 df = pl.read_parquet(filename)
                 dfs.append(df)
-            self.val_df = pl.concat(dfs)
-            print(f"val files: {self.val_files}")
+            df = pl.concat(dfs)
+            self.val_df = normalize(df, self.feature_columns, self.label_columns, cfg.scaler, self.data_dir)
+            print(f"# of train files: {len(self.trn_files)}, # of val files: {len(self.val_files)}")
             print(f"# of val: {len(self.val_df)}")
         else:
             self.test_df = pl.read_parquet(Path(cfg.dir.data_dir, "processed_test.parquet"))
+            self.test_df = normalize(self.test_df, self.feature_columns, None, cfg.scaler, self.data_dir)
             print(f"# of test: {len(self.test_df)}")
 
     def _generate_dataset(self, stage):
@@ -44,12 +48,13 @@ class LeapDataModule(L.LightningDataModule):
             np.random.shuffle(self.trn_files)
         if stage == "train":
             dfs = []
-            for i in range(self.chunk_size):
+            for i in tqdm(range(self.chunk_size)):
                 df = pl.read_parquet(self.trn_files[self.iteration*self.chunk_size+i])
                 dfs.append(df)
             df = pl.concat(dfs)
+            df = normalize(df, self.feature_columns, self.label_columns, self.cfg.scaler, self.data_dir)
             self.iteration += 1
-            if self.iteration * self.cfg.chunk_size >= len(self.trn_files):
+            if (self.iteration + 1) * self.chunk_size >= len(self.trn_files):
                 self.iteration = 0
         elif stage == "val":
             df = self.val_df
