@@ -37,10 +37,12 @@ class LeapDataModule(L.LightningDataModule):
             df = pl.concat(dfs)
             self.val_df = normalize(df, self.feature_columns, self.label_columns, cfg.scaler, self.data_dir)
             print(f"# of train files: {len(self.trn_files)}, # of val files: {len(self.val_files)}")
+            self.val_dataset = None
             print(f"# of val: {len(self.val_df)}")
         else:
             self.test_df = pl.read_parquet(Path(cfg.dir.data_dir, "processed_test.parquet"))
             self.test_df = normalize(self.test_df, self.feature_columns, None, cfg.scaler, self.data_dir)
+            self.test_dataset = None
             print(f"# of test: {len(self.test_df)}")
 
     def _generate_dataset(self, stage):
@@ -57,12 +59,20 @@ class LeapDataModule(L.LightningDataModule):
             if (self.iteration + 1) * self.chunk_size >= len(self.trn_files):
                 self.iteration = 0
         elif stage == "val":
+            if self.val_dataset is not None:
+                return self.val_dataset
             df = self.val_df
         elif stage == "test":
+            if self.test_dataset is not None:
+                return self.test_dataset
             df = self.test_df
         else:
             raise NotImplementedError
         dataset = self.dataset_cls(df, self.feature_columns, self.label_columns, stage=stage, **self.cfg.dataset.params)
+        if stage == "val":
+            self.val_dataset = dataset
+        elif stage == "test":
+            self.test_dataset = dataset
         return dataset
 
     def _generate_dataloader(self, stage):
