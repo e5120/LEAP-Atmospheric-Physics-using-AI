@@ -21,10 +21,26 @@ class LeapDataModule(L.LightningDataModule):
         self.data_dir = Path(cfg.dir.data_dir)
         self.dataset_cls = getattr(leap.dataset, self.cfg.dataset.name)
         # load dataset
-        weight_df = pl.read_csv(Path(self.data_dir, "sample_submission.csv"), n_rows=1)
-        sample_df = pl.read_csv(Path(self.data_dir, "train.csv"), n_rows=1)
-        self.label_columns = weight_df.columns[1:]
-        self.feature_columns = sample_df.select(pl.exclude(self.label_columns)).columns[1:]
+        weight_df = pl.read_csv(Path(self.data_dir, "sample_submission.csv"), n_rows=1)[:, 1:]
+        sample_df = pl.read_csv(Path(self.data_dir, "train.csv"), n_rows=1)[:, 1:]
+        sample_df = sample_df.select(pl.exclude(weight_df.columns))
+        if cfg.used_output_cols:
+            weight_df = weight_df.select([
+                pl.col(f"^{col}.*$")
+                for col in cfg.used_output_cols
+            ])
+        elif cfg.unused_output_cols:
+            raise NotImplementedError
+        self.label_columns = weight_df.columns
+        if cfg.used_input_cols:
+            sample_df = sample_df.select([
+                pl.col(f"^{col}.*$")
+                for col in cfg.used_input_cols
+            ])
+        elif cfg.unused_input_cols:
+            raise NotImplementedError
+        self.feature_columns = sample_df.columns
+        print(f"# of input size: {len(self.feature_columns)}, # of output size: {len(self.label_columns)}")
         if cfg.stage == "train":
             files = list(self.data_dir.glob("processed_train*.parquet"))
             np.random.shuffle(files)
