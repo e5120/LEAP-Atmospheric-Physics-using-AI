@@ -43,55 +43,37 @@ def build_callbacks(cfg):
     return callbacks
 
 
-def normalize(df, feat_cols, label_cols, method, path, reverse=False, eps=1e-8):
+def normalize(df, feat_cols, label_cols, method, path, reverse=False, eps=1e-10):
+    if feat_cols:
+        x_stats = pl.read_parquet(Path(path, "feat_stats.parquet")).select(feat_cols).to_numpy()
+        x_mat = df.select(feat_cols).to_numpy()
+    if label_cols:
+        y_stats = pl.read_parquet(Path(path, "label_stats.parquet")).select(label_cols).to_numpy()
+        y_mat = df.select(label_cols).to_numpy()
     if method == "standard":
-        if feat_cols is not None:
-            x_mat = df.select(feat_cols).to_numpy()
-            x_mean = pl.read_parquet(Path(path, "x_mean.parquet")).select(feat_cols).to_numpy()
-            x_std = pl.read_parquet(Path(path, "x_std.parquet")).select(feat_cols).to_numpy()
-            if reverse:
-                x_mat = x_mat * x_std + x_mean
-            else:
-                x_std = x_std.clip(eps)
-                x_mat = (x_mat - x_mean) / x_std
-        if label_cols is not None:
-            y_mat = df.select(label_cols).to_numpy()
-            y_mean = pl.read_parquet(Path(path, "y_mean.parquet")).select(label_cols).to_numpy()
-            y_std = pl.read_parquet(Path(path, "y_std.parquet")).select(label_cols).to_numpy()
-            if reverse:
-                y_mat = y_mat * y_std + y_mean
-            else:
-                y_std = y_std.clip(eps)
-                y_mat = (y_mat - y_mean) / y_std
+        if feat_cols:
+            x_mean, x_std = x_stats[0], x_stats[1]
+            x_mat = standard_scale(x_mat, x_mean, x_std, reverse=reverse, eps=eps)
+        if label_cols:
+            y_mean, y_std = y_stats[0], y_stats[1]
+            y_mat = standard_scale(y_mat, y_mean, y_std, reverse=reverse, eps=eps)
     elif method == "robust":
-        if feat_cols is not None:
-            x_mat = df.select(feat_cols).to_numpy()
-            x_q2 = pl.read_parquet(Path(path, "x_q2.parquet")).select(feat_cols).to_numpy()
-            x_q3 = pl.read_parquet(Path(path, "x_q3.parquet")).select(feat_cols).to_numpy()
-            x_q4 = pl.read_parquet(Path(path, "x_q4.parquet")).select(feat_cols).to_numpy()
-            if reverse:
-                x_mat = x_mat * (x_q4 - x_q2) + x_q3
-            else:
-                x_mat = (x_mat - x_q3) / np.maximum(x_q4 - x_q2, eps)
-        if label_cols is not None:
-            y_mat = df.select(label_cols).to_numpy()
-            y_q2 = pl.read_parquet(Path(path, "y_q2.parquet")).select(label_cols).to_numpy()
-            y_q3 = pl.read_parquet(Path(path, "y_q3.parquet")).select(label_cols).to_numpy()
-            y_q4 = pl.read_parquet(Path(path, "y_q4.parquet")).select(label_cols).to_numpy()
-            if reverse:
-                y_mat = y_mat * (y_q4 - y_q2) + y_q3
-            else:
-                y_mat = (y_mat - y_q3) / np.maximum(y_q4 - y_q2, eps)
+        if feat_cols:
+            x_q2, x_q3, x_q4 = x_stats[2], x_stats[3], x_stats[4]
+            x_mat = robust_scale(x_mat, x_q2, x_q3, x_q4, reverse=reverse, eps=eps)
+        if label_cols:
+            y_q2, y_q3, y_q4 = y_stats[2], y_stats[3], y_stats[4]
+            y_mat = robust_scale(y_mat, y_q2, y_q3, y_q4)
     else:
         raise NotImplementedError
-    if feat_cols is not None:
+    if feat_cols:
         df = df.with_columns(
             [
                 pl.lit(x_mat[:, i]).alias(col)
                 for i, col in enumerate(feat_cols)
             ]
         )
-    if label_cols is not None:
+    if label_cols:
         df = df.with_columns(
             [
                 pl.lit(y_mat[:, i]).alias(col)
@@ -99,3 +81,20 @@ def normalize(df, feat_cols, label_cols, method, path, reverse=False, eps=1e-8):
             ]
         )
     return df
+
+
+def standard_scale(mat, mean, std, reverse=False, eps=1e-10):
+    if reverse:
+        mat = mat * std + mean
+    else:
+        std = std.clip(eps)
+        mat = (mat - mean) / std
+    return mat
+
+
+def robust_scale(mat, q2, q3, q4, reverse=False, eps=1e-10):
+    if reverse:
+        mat = mat * (q4 - q2) + q3
+    else:
+        mat = (mat - q3) / np.maximum(q4 - q2, eps)
+    return mat
