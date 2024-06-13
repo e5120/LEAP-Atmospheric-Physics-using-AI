@@ -4,7 +4,7 @@ import hydra
 import polars as pl
 from tqdm.auto import tqdm
 
-from leap.utils import NUM_TRAIN
+from leap.utils import NUM_TRAIN, IN_SCALAR_COLUMNS, IN_VECTOR_COLUMNS, OUT_SCALAR_COLUMNS, OUT_VECTOR_COLUMNS
 
 
 def split_dataset(cfg):
@@ -36,11 +36,33 @@ def split_dataset(cfg):
     test_df.write_parquet(Path(output_dir, f"{cfg.prefix}test.parquet"))
 
 
+def generate_sequential_data(cfg):
+    data_dir = Path(cfg.data_dir)
+    print("generating dataset")
+    # train data
+    for filename in tqdm(sorted(list(data_dir.glob(f"{cfg.prefix}train*")))):
+        df = pl.read_parquet(filename)
+        for col in IN_VECTOR_COLUMNS + OUT_VECTOR_COLUMNS:
+            df = df.with_columns(pl.concat_list(f"^{col}_\d+$").alias(col))
+        df = df.select(["sample_id"] + IN_SCALAR_COLUMNS + IN_VECTOR_COLUMNS + OUT_SCALAR_COLUMNS + OUT_VECTOR_COLUMNS)
+        df.write_parquet(filename)
+    # test data
+    filename = Path(data_dir, f"{cfg.prefix}test.parquet")
+    test_df = pl.read_parquet(filename)
+    for col in IN_VECTOR_COLUMNS:
+        test_df = test_df.with_columns(pl.concat_list(f"^{col}_\d+$").alias(col))
+    test_df = test_df.select(["sample_id"] + IN_SCALAR_COLUMNS + IN_VECTOR_COLUMNS)
+    test_df.write_parquet(filename)
+
+
 @hydra.main(config_path="conf", config_name="prepare_data", version_base=None)
 def main(cfg):
     if cfg.output_dir is None:
         cfg.output_dir = cfg.data_dir
-    split_dataset(cfg)
+    if cfg.phase == "split":
+        split_dataset(cfg)
+    if cfg.phase == "sequential":
+        generate_sequential_data(cfg)
 
 
 if __name__=="__main__":
