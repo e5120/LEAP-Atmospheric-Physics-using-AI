@@ -7,7 +7,14 @@ from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
 import leap.dataset
-from leap.utils import normalize
+from leap.utils import (
+    IN_COLUMNS,
+    IN_SCALAR_COLUMNS,
+    IN_VECTOR_COLUMNS,
+    OUT_COLUMNS,
+    OUT_SCALAR_COLUMNS,
+    OUT_VECTOR_COLUMNS,
+)
 
 
 class LeapDataModule(L.LightningDataModule):
@@ -17,69 +24,56 @@ class LeapDataModule(L.LightningDataModule):
         self.cfg = cfg
         self.iteration = 0
         self.chunk_size = cfg.chunk_size
-        self.val_chunk_size = cfg.val_chunk_size
         self.data_dir = Path(cfg.dir.data_dir)
         self.dataset_cls = getattr(leap.dataset, self.cfg.dataset.name)
         # load dataset
-        weight_df = pl.read_csv(Path(self.data_dir, "sample_submission.csv"), n_rows=1)[:, 1:]
-        sample_df = pl.read_csv(Path(self.data_dir, "train.csv"), n_rows=1)[:, 1:]
-        sample_df = sample_df.select(pl.exclude(weight_df.columns))
         if cfg.used_output_cols:
-            weight_df = weight_df.select([
-                pl.col(f"^{col}.*$")
-                for col in cfg.used_output_cols
-            ])
+            self.label_columns = list(filter(lambda x: x in cfg.used_output_cols), OUT_COLUMNS)
         elif cfg.unused_output_cols:
-            raise NotImplementedError
-        self.label_columns = weight_df.columns
+            self.label_columns = list(filter(lambda x: x not in cfg.used_output_cols), OUT_COLUMNS)
+        else:
+            self.label_columns = OUT_COLUMNS
         if cfg.used_input_cols:
-            sample_df = sample_df.select([
-                pl.col(f"^{col}.*$")
-                for col in cfg.used_input_cols
-            ])
+            self.feature_columns = list(filter(lambda x: x in cfg.used_input_cols), IN_COLUMNS)
         elif cfg.unused_input_cols:
-            raise NotImplementedError
-        self.feature_columns = sample_df.columns
+            self.feature_columns = list(filter(lambda x: x not in cfg.used_input_cols), IN_COLUMNS)
+        else:
+            self.feature_columns = IN_COLUMNS
         print(f"# of input size: {len(self.feature_columns)}, # of output size: {len(self.label_columns)}")
         if cfg.stage == "train":
             files = list(self.data_dir.glob("processed_train*.parquet"))
-            np.random.shuffle(files)
-            self.trn_files = files[: -self.val_chunk_size]
-            self.val_files = files[-self.val_chunk_size:]
+            self.trn_files = files[: -cfg.val_chunk_size]
+            self.val_files = files[-cfg.val_chunk_size:]
+            print(f"# of train files: {len(self.trn_files)}, # of val files: {len(self.val_files)}")
             dfs = []
             for filename in self.val_files:
-                df = pl.read_parquet(filename)
+                df = pl.read_parquet(filename, columns=["sample_id"]+self.feature_columns+self.label_columns)
                 dfs.append(df)
-            df = pl.concat(dfs)
-            self.val_df = normalize(df, self.feature_columns, self.label_columns, cfg.scaler, self.data_dir)
-            print(f"# of train files: {len(self.trn_files)}, # of val files: {len(self.val_files)}")
-            self.val_dataset = None
-            print(f"# of val: {len(self.val_df)}")
+            self.val_df = pl.concat(dfs)
+            self.val_dataset = self._generate_dataset("val")
+            print(f"# of val: {len(self.val_dataset)}")
         else:
-            self.test_df = pl.read_parquet(Path(cfg.dir.data_dir, "processed_test.parquet"))
-            self.test_df = normalize(self.test_df, self.feature_columns, None, cfg.scaler, self.data_dir)
-            self.test_dataset = None
-            print(f"# of test: {len(self.test_df)}")
+            self.test_df = pl.read_parquet(Path(cfg.dir.data_dir, "processed_test.parquet"), columns=["sample_id"]+self.feature_columns)
+            self.test_dataset = self._generate_dataset("test")
+            print(f"# of test: {len(self.test_dataset)}")
 
     def _generate_dataset(self, stage):
-        if self.iteration == 0 and stage == "train":
-            np.random.shuffle(self.trn_files)
         if stage == "train":
             dfs = []
             for i in tqdm(range(self.chunk_size)):
-                df = pl.read_parquet(self.trn_files[self.iteration*self.chunk_size+i])
+                j = (self.iteration * self.chunk_size + i) % len(self.trn_files)
+                if j == 0:
+                    np.random.shuffle(self.trn_files)
+                df = pl.read_parquet(self.trn_files[j], columns=["sample_id"]+self.feature_columns+self.label_columns)
                 dfs.append(df)
             df = pl.concat(dfs)
-            df = normalize(df, self.feature_columns, self.label_columns, self.cfg.scaler, self.data_dir)
             self.iteration += 1
-            if (self.iteration + 1) * self.chunk_size >= len(self.trn_files):
-                self.iteration = 0
         elif stage == "val":
-            if self.val_dataset is not None:
+            if hasattr(self, "val_dataset"):
                 return self.val_dataset
             df = self.val_df
         elif stage == "test":
-            if self.test_dataset is not None:
+            if hasattr(self, "test_dataset"):
                 return self.test_dataset
             df = self.test_df
         else:
@@ -106,6 +100,7 @@ class LeapDataModule(L.LightningDataModule):
             shuffle=shuffle,
             drop_last=drop_last,
             pin_memory=True,
+            # persistent_workers=True,
         )
 
     def train_dataloader(self):
@@ -116,3 +111,13 @@ class LeapDataModule(L.LightningDataModule):
 
     def test_dataloader(self):
         return self._generate_dataloader("test")
+
+    @property
+    def input_size(self):
+        vec_feats = list(filter(lambda x: x in IN_VECTOR_COLUMNS, self.feature_columns))
+        return len(self.feature_columns) - len(vec_feats) + len(vec_feats) * 60
+
+    @property
+    def output_size(self):
+        vec_feats = list(filter(lambda x: x in OUT_VECTOR_COLUMNS, self.label_columns))
+        return len(self.label_columns) - len(vec_feats) + len(vec_feats) * 60

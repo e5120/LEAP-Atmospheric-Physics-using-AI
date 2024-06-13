@@ -10,8 +10,8 @@ from leap.utils import setup, get_num_training_steps, build_callbacks
 def main(cfg):
     setup(cfg)
     datamodule = LeapDataModule(cfg)
-    cfg.model.params.input_size = len(datamodule.feature_columns)
-    cfg.model.params.output_size = len(datamodule.label_columns)
+    cfg.model.params.input_size = datamodule.input_size
+    cfg.model.params.output_size = datamodule.output_size
     num_train_data = len(datamodule._generate_dataset("train"))
     max_steps = get_num_training_steps(num_train_data, cfg)
     if "num_training_steps" in cfg.scheduler.params:

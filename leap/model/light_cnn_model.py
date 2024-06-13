@@ -4,6 +4,7 @@ import torch.nn.functional as F
 
 from leap.model import BaseModel
 
+
 class LightCNNModel(BaseModel):
     def __init__(self, input_size, output_size, out_channels=64, resnet_blocks=9,
                  kernel_size=3, num_scalar_feats=16, num_vector_feats=9, seq_len=60, dropout=0.1):
@@ -35,8 +36,8 @@ class LightCNNModel(BaseModel):
         )
 
     def forward(self, batch):
-        v = batch["vector"]  # (bs, num_features, seq_len)
-        s = batch["scalar"].unsqueeze(dim=-1).repeat(1, 1, v.size(-1))  # # (bs, num_features, seq_len)
+        v = batch["x_vector"]  # (bs, num_features, seq_len)
+        s = batch["x_scalar"].unsqueeze(dim=-1).repeat(1, 1, v.size(-1))  # # (bs, num_features, seq_len)
         x = torch.cat([v, s], dim=1)
 
         out = self.conv(x)  # (bs, ch, seq_len)
