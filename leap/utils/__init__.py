@@ -35,3 +35,14 @@ YEAR = 365 * DAY  # [point/year]
 NUM_TRAIN = 10_091_520
 NUM_TEST = 625_000
 NUM_ALL = NUM_TRAIN + NUM_TEST
+
+
+def get_label_columns(cols):
+    label_cols = []
+    for col in cols:
+        if col in OUT_SCALAR_COLUMNS:
+            label_cols.append(col)
+        else:
+            for i in range(60):
+                label_cols.append(f"{col}_{i}")
+    return label_cols

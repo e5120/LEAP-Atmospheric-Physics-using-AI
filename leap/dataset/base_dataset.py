@@ -20,9 +20,10 @@ class BaseDataset(Dataset):
         self.x_vector_arr = torch.from_numpy(
             np.array(df[self.in_vector_cols].to_numpy().tolist())
         )
+        self.out_scalar_cols = list(filter(lambda x: x in OUT_SCALAR_COLUMNS, label_columns))
+        self.out_vector_cols = list(filter(lambda x: x in OUT_VECTOR_COLUMNS, label_columns))
+        self.label_cols = self.out_scalar_cols + self.out_vector_cols
         if stage != "test":
-            self.out_scalar_cols = list(filter(lambda x: x in OUT_SCALAR_COLUMNS, label_columns))
-            self.out_vector_cols = list(filter(lambda x: x in OUT_VECTOR_COLUMNS, label_columns))
             self.out_cols = self.out_scalar_cols + self.out_vector_cols
             self.y_scalar_arr = torch.from_numpy(
                 np.array(df[self.out_scalar_cols].to_numpy().tolist())

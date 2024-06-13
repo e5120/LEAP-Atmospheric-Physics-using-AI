@@ -6,18 +6,46 @@ import polars as pl
 import lightning as L
 
 from leap import LeapDataModule, LeapModelModule
-from leap.utils import normalize
+from leap.utils import normalize, get_label_columns
+
+
+REPLACE_FROM = ['ptend_q0002_0', 'ptend_q0002_1', 'ptend_q0002_2', 'ptend_q0002_3', 'ptend_q0002_4', 'ptend_q0002_5', 'ptend_q0002_6', 'ptend_q0002_7', 'ptend_q0002_8', 'ptend_q0002_9', 'ptend_q0002_10', 'ptend_q0002_11', 'ptend_q0002_12', 'ptend_q0002_13', 'ptend_q0002_14', 'ptend_q0002_15', 'ptend_q0002_16', 'ptend_q0002_17', 'ptend_q0002_18', 'ptend_q0002_19', 'ptend_q0002_20', 'ptend_q0002_21', 'ptend_q0002_22', 'ptend_q0002_23', 'ptend_q0002_24', 'ptend_q0002_25', 'ptend_q0002_26']
+REPLACE_TO = ['state_q0002_0', 'state_q0002_1', 'state_q0002_2', 'state_q0002_3', 'state_q0002_4', 'state_q0002_5', 'state_q0002_6', 'state_q0002_7', 'state_q0002_8', 'state_q0002_9', 'state_q0002_10', 'state_q0002_11', 'state_q0002_12', 'state_q0002_13', 'state_q0002_14', 'state_q0002_15', 'state_q0002_16', 'state_q0002_17', 'state_q0002_18', 'state_q0002_19', 'state_q0002_20', 'state_q0002_21', 'state_q0002_22', 'state_q0002_23', 'state_q0002_24', 'state_q0002_25', 'state_q0002_26']
+
+
+def post_process(df, label_columns, cfg):
+    df = normalize(df, [], label_columns, "standard", cfg.dir.data_dir, reverse=True)
+    # https://www.kaggle.com/competitions/leap-atmospheric-physics-ai-climsim/discussion/502484
+    if False:
+        input_df = pl.read_csv(Path(cfg.dir.data_dir, "test.csv"), columns=REPLACE_TO)
+        for f, t in zip(REPLACE_FROM, REPLACE_TO):
+            df.with_columns(
+                pl.lit(-input_df[t] / 1200).alias(f)
+            )
+    # 重みをかける
+    weight_df = pl.read_csv(Path(cfg.dir.data_dir, "sample_submission.csv"), n_rows=1)[:, 1:]
+    columns = weight_df.columns
+    for col in columns:
+        if col in df:
+            df = df.with_columns(
+                pl.col(col) * weight_df[0, col]
+            )
+        else:
+            df = df.with_columns(pl.lit(0).alias(col))
+    # 提出用の並び順にする
+    df = df.select(pl.col(["sample_id"] + columns))
+    return df
 
 
 @hydra.main(config_path=None, config_name="config", version_base=None)
 def main(cfg):
     cfg.stage = "test"
     datamodule = LeapDataModule(cfg)
-    cfg.model.params.input_size = len(datamodule.feature_columns)
-    cfg.model.params.output_size = len(datamodule.label_columns)
+    cfg.model.params.input_size = datamodule.input_size
+    cfg.model.params.output_size = datamodule.output_size
     test_dataloader = datamodule.test_dataloader()
-    label_columns = datamodule.label_columns
-    test_df = test_dataloader.dataset.df.select(["sample_id"])
+    test_df = test_dataloader.dataset.df
+    label_columns = get_label_columns(test_dataloader.dataset.label_cols)
     trainer = L.Trainer(**cfg.trainer)
     if cfg.dir.name == "kaggle":
         model_paths = Path(cfg.dir.model_dir, f"lb-{cfg.exp_name}").glob("*.ckpt")
@@ -33,15 +61,14 @@ def main(cfg):
         )
         predictions = trainer.predict(modelmodule, test_dataloader)
         predictions = torch.cat(predictions).numpy()
+        assert predictions.shape[1] == len(label_columns), f"{predictions.shape}, {len(label_columns)}"
         submit_df = test_df.with_columns(
             [
                 pl.lit(predictions[:, i]).alias(label_name)
                 for i, label_name in enumerate(label_columns)
             ]
         )
-        submit_df = normalize(submit_df, None, label_columns, cfg.scaler, cfg.dir.data_dir, reverse=True)
-        columns = pl.read_csv(Path(cfg.dir.data_dir, "sample_submission.csv"), n_rows=1).columns
-        submit_df = submit_df.select(pl.col(columns))
+        submit_df = post_process(submit_df, label_columns, cfg)
         submit_df.write_csv(Path(output_dir, f"submission_{model_path.stem}.csv"))
 
 
