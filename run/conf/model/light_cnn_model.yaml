@@ -2,7 +2,7 @@ name: "LightCNNModel"
 params: {
   input_size: -1,
   output_size: -1,
-  out_channels: 16,
+  out_channels: 128,
   kernel_size: 3,
   num_scalar_feats: 16,
   num_vector_feats: 9,

@@ -8,8 +8,8 @@ from leap.utils import IN_SCALAR_COLUMNS, IN_VECTOR_COLUMNS, OUT_SCALAR_COLUMNS,
 
 
 class SequentialDataset(BaseDataset):
-    def __init__(self, df, feat_columns, label_columns, stage="train"):
-        super().__init__(df, feat_columns, label_columns, stage=stage)
+    def __init__(self, df, feat_columns, label_columns, precision=64, stage="train"):
+        super().__init__(df, feat_columns, label_columns, precision=precision, stage=stage)
         if stage != "test":
             self.y_arr = torch.concat([self.y_scalar_arr, self.y_vector_arr.reshape(self.x_vector_arr.size(0), -1)], dim=1)
 

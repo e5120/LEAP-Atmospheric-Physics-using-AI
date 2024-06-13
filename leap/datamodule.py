@@ -78,7 +78,7 @@ class LeapDataModule(L.LightningDataModule):
             df = self.test_df
         else:
             raise NotImplementedError
-        dataset = self.dataset_cls(df, self.feature_columns, self.label_columns, stage=stage, **self.cfg.dataset.params)
+        dataset = self.dataset_cls(df, self.feature_columns, self.label_columns, precision=self.cfg.trainer.precision, stage=stage, **self.cfg.dataset.params)
         if stage == "val":
             self.val_dataset = dataset
         elif stage == "test":

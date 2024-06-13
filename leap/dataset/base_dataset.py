@@ -8,7 +8,7 @@ from leap.utils import IN_SCALAR_COLUMNS, IN_VECTOR_COLUMNS, OUT_SCALAR_COLUMNS,
 
 
 class BaseDataset(Dataset):
-    def __init__(self, df, feat_columns, label_columns, stage="train"):
+    def __init__(self, df, feat_columns, label_columns, precision=64, stage="train"):
         assert stage in ["train", "val", "test"]
         self.df = df.select("sample_id")
         self.in_scalar_cols = list(filter(lambda x: x in IN_SCALAR_COLUMNS, feat_columns))
@@ -20,6 +20,9 @@ class BaseDataset(Dataset):
         self.x_vector_arr = torch.from_numpy(
             np.array(df[self.in_vector_cols].to_numpy().tolist())
         )
+        if precision != 64:
+            self.x_scalar_arr = self.x_scalar_arr.float()
+            self.x_vector_arr = self.x_vector_arr.float()
         self.out_scalar_cols = list(filter(lambda x: x in OUT_SCALAR_COLUMNS, label_columns))
         self.out_vector_cols = list(filter(lambda x: x in OUT_VECTOR_COLUMNS, label_columns))
         self.label_cols = self.out_scalar_cols + self.out_vector_cols
@@ -31,6 +34,9 @@ class BaseDataset(Dataset):
             self.y_vector_arr = torch.from_numpy(
                 np.array(df[self.out_vector_cols].to_numpy().tolist())
             )
+            if precision != 64:
+                self.y_scalar_arr = self.y_scalar_arr.float()
+                self.y_vector_arr = self.y_vector_arr.float()
         self.stage = stage
 
     def __len__(self):
