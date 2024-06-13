@@ -2,4 +2,6 @@ data_dir: /project/data/leap
 output_dir: ~
 prefix: processed_
 batch_size: 100000
-phase: split  # [split|sequential]
+overwrite: False
+phase: split  # [split|generate]
+scaler: standard  # [standard, robust]
