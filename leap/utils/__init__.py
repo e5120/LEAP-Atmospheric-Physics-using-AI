@@ -14,6 +14,7 @@ IN_SCALAR_COLUMNS = [
 IN_VECTOR_COLUMNS = [
     "state_t", "state_q0001", "state_q0002", "state_q0003", "state_u", "state_v", "pbuf_ozone", "pbuf_CH4", "pbuf_N2O",
 ]
+IN_COLUMNS = IN_SCALAR_COLUMNS + IN_VECTOR_COLUMNS
 OUT_SCALAR_COLUMNS = [
     "cam_out_NETSW", "cam_out_FLWDS", "cam_out_PRECSC", "cam_out_PRECC",
     "cam_out_SOLS", "cam_out_SOLL", "cam_out_SOLSD", "cam_out_SOLLD",
@@ -22,6 +23,7 @@ OUT_VECTOR_COLUMNS = [
     "ptend_t", "ptend_q0001", "ptend_q0002", "ptend_q0003",
     "ptend_u", "ptend_v",
 ]
+OUT_COLUMNS = OUT_SCALAR_COLUMNS + OUT_VECTOR_COLUMNS
 
 NUM_GRID = 384
 DOWN_SAMPLING = 7
