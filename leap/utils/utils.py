@@ -23,7 +23,8 @@ def setup(cfg):
 
 
 def get_num_training_steps(n_data, cfg):
-    steps_per_epoch = n_data // cfg.batch_size // len(cfg.trainer.devices) // cfg.trainer.accumulate_grad_batches
+    num_devices = 1 if isinstance(cfg.trainer.devices, int) else len(cfg.trainer.devices)
+    steps_per_epoch = n_data // cfg.batch_size // num_devices // cfg.trainer.accumulate_grad_batches
     num_training_steps = steps_per_epoch * cfg.trainer.max_epochs
     return num_training_steps
 
