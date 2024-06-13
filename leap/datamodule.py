@@ -41,7 +41,7 @@ class LeapDataModule(L.LightningDataModule):
             self.feature_columns = IN_COLUMNS
         print(f"# of input size: {len(self.feature_columns)}, # of output size: {len(self.label_columns)}")
         if cfg.stage == "train":
-            files = list(self.data_dir.glob("processed_train*.parquet"))
+            files = sorted(list(self.data_dir.glob("processed_train*.parquet")))
             self.trn_files = files[: -cfg.val_chunk_size]
             self.val_files = files[-cfg.val_chunk_size:]
             print(f"# of train files: {len(self.trn_files)}, # of val files: {len(self.val_files)}")
