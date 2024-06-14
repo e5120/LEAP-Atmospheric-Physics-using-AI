@@ -14,29 +14,25 @@ defaults:
   - dataset: single_dataset
   - model: ffn_model
   - optimizer: adamw
-  - scheduler: reduce_lr
+  - scheduler: cosine_with_restart_warmup
 
 dir_name: single
 exp_name: dummy
 stage: train
-chunk_size: 10
-val_chunk_size: 3
 batch_size: 4096
 seed: 42
-num_workers: 5
 benchmark: False
 logger: False
 
 trainer:
-  max_epochs: 100
-  min_epochs: 200
+  max_epochs: 10
+  # min_epochs: 10
   enable_progress_bar: True
   accelerator: auto
   precision: "16-mixed"
   # precision: 64
   gradient_clip_val: ~
   accumulate_grad_batches: 1
-  reload_dataloaders_every_n_epochs: 1
   devices: [0]
 
 early_stopping:

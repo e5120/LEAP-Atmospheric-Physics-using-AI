@@ -1,3 +1,6 @@
+import yaml
+from pathlib import Path
+
 import hydra
 import lightning as L
 from lightning.pytorch.loggers import WandbLogger
@@ -12,7 +15,8 @@ def main(cfg):
     datamodule = LeapDataModule(cfg)
     cfg.model.params.input_size = datamodule.input_size
     cfg.model.params.output_size = datamodule.output_size
-    num_train_data = len(datamodule._generate_dataset("train"))
+    with open(Path(cfg.dir.data_dir, "data_size.yaml"), "r") as f:
+        num_train_data = yaml.safe_load(f)["train"]
     max_steps = get_num_training_steps(num_train_data, cfg)
     if "num_training_steps" in cfg.scheduler.params:
         cfg.scheduler.params.num_training_steps = max_steps

@@ -1,7 +1,6 @@
 import yaml
 from pathlib import Path
 
-import torch
 import numpy as np
 import polars as pl
 import contextlib2
@@ -72,17 +71,17 @@ def write_tfrecord(files, data_dir, stage, chunk_size=5, num_shards=100):
     return n_data
 
 
-def read_tfrecord(example, stage="train"):
+def read_tfrecord(example, stage):
     tfrec_format = {"sample_id": tf.io.FixedLenFeature([], tf.string)}
     tfrec_format.update({
         col: tf.io.FixedLenFeature([], tf.float32)
-        for col in IN_SCALAR_COLUMNS + OUT_SCALAR_COLUMNS
+        for col in IN_SCALAR_COLUMNS
     })
     tfrec_format.update({
         col: tf.io.FixedLenSequenceFeature([], tf.float32, allow_missing=True)
         for col in IN_VECTOR_COLUMNS
     })
-    if stage in ["train", "val"]:
+    if stage != "test":
         tfrec_format.update({
             col: tf.io.FixedLenFeature([], tf.float32)
             for col in OUT_SCALAR_COLUMNS
@@ -95,7 +94,7 @@ def read_tfrecord(example, stage="train"):
     return example
 
 
-def get_dataset(files, batch_size=16, stage="train"):
+def get_dataset(files, batch_size=1024, stage="train"):
     AUTO = tf.data.experimental.AUTOTUNE
     ds = tf.data.TFRecordDataset(files, num_parallel_reads=AUTO, compression_type="GZIP")
     if stage in ["val", "test"]:
@@ -106,14 +105,17 @@ def get_dataset(files, batch_size=16, stage="train"):
         opt = tf.data.Options()
         opt.experimental_deterministic = False
         ds = ds.with_options(opt)
-    ds = ds.map(lambda example: read_tfrecord(example, stage=stage), num_parallel_calls=AUTO)
-    ds = ds.batch(batch_size, drop_remainder=True if stage=="train" else False)
-    ds = ds.prefetch(AUTO)
+    ds = (
+        ds
+        .map(lambda example: read_tfrecord(example, stage), num_parallel_calls=AUTO)
+        .batch(batch_size, drop_remainder=True if stage=="train" else False)
+        .prefetch(AUTO)
+    )
     return tfds.as_numpy(ds)
 
 
 class TFRecordDataLoader(object):
-    def __init__(self, data_dir, batch_size=32, stage="train", collate_fn=None):
+    def __init__(self, data_dir, batch_size=1024, stage="train"):
         assert stage in ["train", "val", "test"]
         files = sorted(data_dir.glob(f"{stage}_*.tfrecord"))
         self.ds = get_dataset(
@@ -121,14 +123,12 @@ class TFRecordDataLoader(object):
             batch_size=batch_size,
             stage=stage,
         )
-        # ToDo: 以下を修正
         with open(Path(data_dir, "data_size.yaml"), "r") as f:
             num_data = yaml.safe_load(f)
         self.num_examples = num_data[stage]
         self.batch_size = batch_size
-        self._iterator = None
-        self.collate_fn = collate_fn
         self.stage = stage
+        self._iterator = None
 
     def __iter__(self):
         if self._iterator is None:
@@ -142,8 +142,6 @@ class TFRecordDataLoader(object):
 
     def __next__(self):
         batch = next(self._iterator)
-        for k, v in batch.items():
-            batch[k] = torch.from_numpy(v)
         return batch
 
     def __len__(self):

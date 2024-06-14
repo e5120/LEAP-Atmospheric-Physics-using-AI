@@ -2,6 +2,8 @@ name: "FFNModel"
 params: {
   input_size: -1,
   output_size: -1,
-  hidden_sizes: [1024, 512, 256, 256, 512],
+  hidden_sizes: [1024, 512, 512, 1024],
   dropout: 0.1,
 }
+collate_fn: "single_collate_fn"
+collate_params: {}
