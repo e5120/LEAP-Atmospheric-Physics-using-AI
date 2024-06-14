@@ -56,6 +56,7 @@ def generate_dataset(cfg):
     for filename in tqdm(sorted(list(data_dir.glob("raw_train*")))):
         df = pl.read_parquet(filename)
         df = normalize(df, feat_cols, label_cols, cfg.scaler, data_dir)
+        df = df.with_columns(pl.col(pl.Float64).cast(pl.Float32))
         for col in IN_VECTOR_COLUMNS + OUT_VECTOR_COLUMNS:
             df = df.with_columns(pl.concat_list(f"^{col}_\d+$").alias(col))
         df = df.select(["sample_id"] + IN_SCALAR_COLUMNS + IN_VECTOR_COLUMNS + OUT_SCALAR_COLUMNS + OUT_VECTOR_COLUMNS)
