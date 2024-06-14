@@ -1,7 +1,14 @@
+# common parameters
 data_dir: /project/data/leap
 output_dir: ~
-prefix: processed_
-batch_size: 100000
+phase: split  # [split|generate|tfrecord]
 overwrite: False
-phase: split  # [split|generate]
+# split phase
+batch_size: 100000
+# generate phase
+prefix: processed_
 scaler: standard  # [standard, robust]
+# tfrecord phase
+num_val_files: 5
+num_shards: 100
+chunk_size: 10

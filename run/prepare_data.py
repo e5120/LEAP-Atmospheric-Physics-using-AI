@@ -1,3 +1,4 @@
+import yaml
 from pathlib import Path
 
 import hydra
@@ -7,8 +8,8 @@ import pyarrow as pa
 from pyarrow import csv
 from tqdm.auto import tqdm
 
+from leap.tfrecord import write_tfrecord
 from leap.utils import (
-    NUM_TRAIN,
     IN_SCALAR_COLUMNS,
     IN_VECTOR_COLUMNS,
     OUT_SCALAR_COLUMNS,
@@ -71,6 +72,29 @@ def generate_dataset(cfg):
     test_df.write_parquet(str(filename).replace("raw_", cfg.prefix))
 
 
+def generate_tfrecord(cfg):
+    data_dir = Path(cfg.data_dir)
+    if not cfg.overwrite and list(data_dir.glob(f"*.tfrecord")):
+        print("already exist")
+        return
+    print("generating tfrecord")
+    files = sorted(data_dir.glob(f"{cfg.prefix}train*.parquet"))
+    trn_files = files[:-cfg.num_val_files]
+    val_files = files[-cfg.num_val_files:]
+    test_files = sorted(data_dir.glob(f"{cfg.prefix}test.parquet"))
+    print(len(trn_files), len(val_files), len(test_files))
+    num_train_data = write_tfrecord(trn_files, data_dir, "train", chunk_size=cfg.chunk_size, num_shards=cfg.num_shards)
+    num_val_data = write_tfrecord(val_files, data_dir, "val", num_shards=5)
+    num_test_data = write_tfrecord(test_files, data_dir, "test", num_shards=1)
+    with open(Path(data_dir, "data_size.yaml"), "w") as f:
+        num_data = {
+            "train": num_train_data,
+            "val": num_val_data,
+            "test": num_test_data,
+        }
+        yaml.safe_dump(num_data, f)
+
+
 @hydra.main(config_path="conf", config_name="prepare_data", version_base=None)
 def main(cfg):
     if cfg.output_dir is None:
@@ -79,6 +103,8 @@ def main(cfg):
         split_dataset(cfg)
     if cfg.phase == "generate":
         generate_dataset(cfg)
+    if cfg.phase == "tfrecord":
+        generate_tfrecord(cfg)
 
 
 if __name__=="__main__":
