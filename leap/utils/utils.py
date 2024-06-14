@@ -64,23 +64,19 @@ def normalize(df, feat_cols, label_cols, method, path, reverse=False, eps=1e-10)
             x_mat = robust_scale(x_mat, x_q2, x_q3, x_q4, reverse=reverse, eps=eps)
         if label_cols:
             y_q2, y_q3, y_q4 = y_stats[2], y_stats[3], y_stats[4]
-            y_mat = robust_scale(y_mat, y_q2, y_q3, y_q4)
+            y_mat = robust_scale(y_mat, y_q2, y_q3, y_q4, reverse=reverse, eps=eps)
     else:
         raise NotImplementedError
     if feat_cols:
-        df = df.with_columns(
-            [
-                pl.lit(x_mat[:, i]).alias(col)
-                for i, col in enumerate(feat_cols)
-            ]
-        )
+        df = df.with_columns([
+            pl.lit(x_mat[:, i]).alias(col)
+            for i, col in enumerate(feat_cols)
+        ])
     if label_cols:
-        df = df.with_columns(
-            [
-                pl.lit(y_mat[:, i]).alias(col)
-                for i, col in enumerate(label_cols)
-            ]
-        )
+        df = df.with_columns([
+            pl.lit(y_mat[:, i]).alias(col)
+            for i, col in enumerate(label_cols)
+        ])
     return df
 
 
