@@ -60,7 +60,7 @@ def main(cfg):
             cfg=cfg,
         )
         predictions = trainer.predict(modelmodule, test_dataloader)
-        predictions = torch.cat(predictions).numpy()
+        predictions = torch.cat(predictions).double().numpy()
         assert predictions.shape[1] == len(label_columns), f"{predictions.shape}, {len(label_columns)}"
         submit_df = test_df.with_columns(
             [
