@@ -35,7 +35,7 @@ class LeapDataModule(L.LightningDataModule):
             self.feature_columns = list(filter(lambda x: x not in cfg.used_input_cols), IN_COLUMNS)
         else:
             self.feature_columns = IN_COLUMNS
-        print(f"# of input size: {len(self.input_size)}, # of output size: {len(self.output_size)}")
+        print(f"# of input size: {self.input_size}, # of output size: {self.output_size}")
 
     def train_dataloader(self):
         return TFRecordDataLoader(self.data_dir, batch_size=self.batch_size, stage="train")
