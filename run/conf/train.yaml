@@ -24,8 +24,8 @@ benchmark: False
 logger: False
 
 trainer:
-  max_epochs: 10
-  # min_epochs: 10
+  max_epochs: 20
+  min_epochs: 100
   enable_progress_bar: True
   accelerator: auto
   precision: "16-mixed"
@@ -37,7 +37,7 @@ trainer:
 early_stopping:
   monitor: "val_r2"
   mode: "max"
-  patience: 3
+  patience: 5
 
 model_checkpoint:
   save_weights_only: True
