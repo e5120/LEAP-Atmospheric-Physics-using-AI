@@ -10,12 +10,7 @@ class LightCNNModel(BaseModel):
                  kernel_size=3, num_scalar_feats=16, num_vector_feats=9, seq_len=60, dropout=0.1):
         super().__init__()
         num_feats = num_scalar_feats + num_vector_feats
-        self.conv = nn.Conv1d(
-            num_feats, out_channels, kernel_size=1,
-            stride=1,
-            padding="same",
-            bias=False,
-        )
+        self.conv = nn.Conv1d(num_feats, out_channels, 1, padding="same")
         self.cnn_block1 = self._make_cnn_layer(out_channels, kernel_size)
         self.bn = nn.BatchNorm1d(out_channels)
         self.cnn_block2 = self._make_cnn_layer(out_channels, kernel_size)
@@ -46,12 +41,15 @@ class LightCNNModel(BaseModel):
         out = self.bn(out)
         out = out + self.cnn_block2(out)
         out = self.conv2(out)
-        seq_out = out[:, :6]
-        flat_out = out[:, 6:]
-        logits = torch.cat([
-            seq_out.reshape(seq_out.shape[0], -1),
-            flat_out.mean(dim=-1),
-        ], dim=1)
+        flat_out = out[:, :-6]
+        seq_out = out[:, -6:]
+        logits = torch.cat(
+            [
+                flat_out.mean(dim=-1),
+                seq_out.reshape(seq_out.shape[0], -1),
+            ],
+            dim=1,
+        )
         return {
             "logits": logits,
         }
