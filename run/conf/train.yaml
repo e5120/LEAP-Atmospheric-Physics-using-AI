@@ -11,7 +11,6 @@ hydra:
 defaults:
   - _self_
   - dir: local
-  - dataset: single_dataset
   - model: ffn_model
   - optimizer: adamw
   - scheduler: cosine_with_restart_warmup
@@ -33,7 +32,7 @@ trainer:
   # precision: 64
   gradient_clip_val: ~
   accumulate_grad_batches: 1
-  devices: [0]
+  devices: [1]
 
 early_stopping:
   monitor: "val_r2"

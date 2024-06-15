@@ -11,6 +11,9 @@ from tqdm.auto import tqdm
 from leap.utils import IN_SCALAR_COLUMNS, IN_VECTOR_COLUMNS, OUT_SCALAR_COLUMNS, OUT_VECTOR_COLUMNS
 
 
+# https://www.kaggle.com/code/konstantinboyko/convert-original-csv-file-to-tfrecord/notebook
+# https://www.kaggle.com/code/hidehisaarai1213/g2net-waveform-tfrecords
+# https://www.kaggle.com/code/hidehisaarai1213/g2net-read-from-tfrecord-train-with-pytorch#TFRecord-Loader
 def generate_tf_example(row, stage):
     feature = {"sample_id": string_feature(row[0, "sample_id"])}
     feature.update({

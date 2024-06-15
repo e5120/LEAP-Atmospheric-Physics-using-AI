@@ -19,6 +19,7 @@ class LeapDataModule(L.LightningDataModule):
         super().__init__()
         assert cfg.stage in ["train", "test"]
         self.cfg = cfg
+        self.stage = cfg.stage
         self.batch_size = cfg.batch_size
         self.data_dir = Path(cfg.dir.data_dir)
         self.collate_fn = getattr(leap.collator, cfg.model.collate_fn)
@@ -46,8 +47,11 @@ class LeapDataModule(L.LightningDataModule):
     def test_dataloader(self):
         return TFRecordDataLoader(self.data_dir, batch_size=self.batch_size, stage="test")
 
+    def predict_dataloader(self):
+        return TFRecordDataLoader(self.data_dir, batch_size=self.batch_size, stage="test")
+
     def on_before_batch_transfer(self, batch, dataloader_idx):
-        return self.collate_fn(batch, self.feature_columns, self.label_columns, **self.collate_params)
+        return self.collate_fn(batch, self.feature_columns, self.label_columns, self.stage, **self.collate_params)
 
     @property
     def input_size(self):

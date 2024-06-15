@@ -7,3 +7,5 @@ params: {
   num_scalar_feats: 16,
   num_vector_feats: 9,
 }
+collate_fn: "sequential_collate_fn"
+collate_params: {}

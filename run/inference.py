@@ -43,9 +43,8 @@ def main(cfg):
     datamodule = LeapDataModule(cfg)
     cfg.model.params.input_size = datamodule.input_size
     cfg.model.params.output_size = datamodule.output_size
-    test_dataloader = datamodule.test_dataloader()
-    test_df = test_dataloader.dataset.df
-    label_columns = get_label_columns(test_dataloader.dataset.label_cols)
+    test_df = pl.read_parquet(Path(cfg.dir.data_dir, "processed_test.parquet"), columns=["sample_id"])
+    label_columns = get_label_columns(datamodule.label_columns)
     trainer = L.Trainer(**cfg.trainer)
     if cfg.dir.name == "kaggle":
         model_paths = Path(cfg.dir.model_dir, f"lb-{cfg.exp_name}").glob("*.ckpt")
@@ -59,7 +58,7 @@ def main(cfg):
             checkpoint_path=model_path,
             cfg=cfg,
         )
-        predictions = trainer.predict(modelmodule, test_dataloader)
+        predictions = trainer.predict(modelmodule, datamodule=datamodule)
         predictions = torch.cat(predictions).double().numpy()
         assert predictions.shape[1] == len(label_columns), f"{predictions.shape}, {len(label_columns)}"
         submit_df = test_df.with_columns(
