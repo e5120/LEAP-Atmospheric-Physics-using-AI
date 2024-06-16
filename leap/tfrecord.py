@@ -118,19 +118,20 @@ def get_dataset(files, batch_size=1024, stage="train"):
 
 
 class TFRecordDataLoader(object):
-    def __init__(self, data_dir, batch_size=1024, stage="train", num_train_files=None):
+    def __init__(self, data_dir, batch_size=1024, stage="train", num_files=None):
         assert stage in ["train", "val", "test"]
+        with open(Path(data_dir, "data_size.yaml"), "r") as f:
+            self.num_examples = yaml.safe_load(f)[stage]
         files = sorted(data_dir.glob(f"{stage}_*.tfrecord"))
-        if num_train_files:
-            files = np.random.choice(files, num_train_files, replace=False)
+        if num_files:
+            self.num_examples = int(self.num_examples * num_files / len(files))
+            files = np.random.choice(files, num_files, replace=False)
+        files = list(map(str, files))
         self.ds = get_dataset(
             files,
             batch_size=batch_size,
             stage=stage,
         )
-        with open(Path(data_dir, "data_size.yaml"), "r") as f:
-            num_data = yaml.safe_load(f)
-        self.num_examples = num_data[stage]
         self.batch_size = batch_size
         self.stage = stage
         self._iterator = None
