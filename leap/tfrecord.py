@@ -118,9 +118,11 @@ def get_dataset(files, batch_size=1024, stage="train"):
 
 
 class TFRecordDataLoader(object):
-    def __init__(self, data_dir, batch_size=1024, stage="train"):
+    def __init__(self, data_dir, batch_size=1024, stage="train", num_train_files=None):
         assert stage in ["train", "val", "test"]
         files = sorted(data_dir.glob(f"{stage}_*.tfrecord"))
+        if num_train_files:
+            files = np.random.choice(files, num_train_files, replace=False)
         self.ds = get_dataset(
             files,
             batch_size=batch_size,
