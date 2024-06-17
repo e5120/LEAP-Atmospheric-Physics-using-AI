@@ -7,12 +7,13 @@ from leap.utils import IN_VECTOR_COLUMNS, IN_COLUMNS, OUT_COLUMNS
 def simple_collate_fn(batch, feat_cols, label_cols, stage):
     for col in IN_COLUMNS:
         batch[col] = torch.from_numpy(batch[col])
-    labels = []
-    for col in OUT_COLUMNS:
-        batch[col] = torch.from_numpy(batch[col]).reshape(batch[col].shape[0], -1)
-        labels.append(batch[col])
-    labels = torch.concat(labels, dim=1)
-    batch["labels"] = labels
+    if stage != "test":
+        labels = []
+        for col in OUT_COLUMNS:
+            batch[col] = torch.from_numpy(batch[col]).reshape(batch[col].shape[0], -1)
+            labels.append(batch[col])
+        labels = torch.concat(labels, dim=1)
+        batch["labels"] = labels
     return batch
 
 
