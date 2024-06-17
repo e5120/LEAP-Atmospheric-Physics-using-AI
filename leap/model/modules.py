@@ -26,6 +26,7 @@ class ResnetBlock(nn.Module):
                 padding=padding,
                 bias=False,
             ),
+            nn.Dropout(p=p, inplace=True),
         )
 
     def forward(self, x):
