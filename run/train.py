@@ -17,6 +17,9 @@ def main(cfg):
     cfg.model.params.output_size = datamodule.output_size
     with open(Path(cfg.dir.data_dir, "data_size.yaml"), "r") as f:
         num_train_data = yaml.safe_load(f)["train"]
+        if cfg.num_train_files:
+            files = list(Path(cfg.dir.data_dir).glob("train*.tfrecord"))
+            num_train_data = int(num_train_data * cfg.num_train_files / len(files))
     max_steps = get_num_training_steps(num_train_data, cfg)
     if "num_training_steps" in cfg.scheduler.params:
         cfg.scheduler.params.num_training_steps = max_steps
