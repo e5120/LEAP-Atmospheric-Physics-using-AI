@@ -24,18 +24,18 @@ class LeapDataModule(L.LightningDataModule):
         self.data_dir = Path(cfg.dir.data_dir)
         self.collate_fn = getattr(leap.collator, cfg.model.collate_fn)
         self.collate_params = cfg.model.collate_params
-        if cfg.used_output_cols:
-            self.label_columns = list(filter(lambda x: x in cfg.used_output_cols, OUT_COLUMNS))
-        elif cfg.unused_output_cols:
-            self.label_columns = list(filter(lambda x: x not in cfg.used_output_cols, OUT_COLUMNS))
-        else:
-            self.label_columns = OUT_COLUMNS
         if cfg.used_input_cols:
             self.feature_columns = list(filter(lambda x: x in cfg.used_input_cols, IN_COLUMNS))
         elif cfg.unused_input_cols:
-            self.feature_columns = list(filter(lambda x: x not in cfg.used_input_cols, IN_COLUMNS))
+            self.feature_columns = list(filter(lambda x: x not in cfg.unused_input_cols, IN_COLUMNS))
         else:
             self.feature_columns = IN_COLUMNS
+        if cfg.used_output_cols:
+            self.label_columns = list(filter(lambda x: x in cfg.used_output_cols, OUT_COLUMNS))
+        elif cfg.unused_output_cols:
+            self.label_columns = list(filter(lambda x: x not in cfg.unused_output_cols, OUT_COLUMNS))
+        else:
+            self.label_columns = OUT_COLUMNS
         print(f"# of input size: {self.input_size}, # of output size: {self.output_size}")
 
     def train_dataloader(self):
