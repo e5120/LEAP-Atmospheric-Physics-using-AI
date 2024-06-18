@@ -1,3 +1,4 @@
+import pickle
 from pathlib import Path
 
 import hydra
@@ -6,23 +7,30 @@ import polars as pl
 import lightning as L
 
 from leap import LeapDataModule, LeapModelModule
-from leap.utils import normalize, get_label_columns
+from leap.utils import setup, normalize, get_label_columns
 
 
 def post_process(df, label_columns, cfg):
     df = normalize(df, [], label_columns, "standard", cfg.dir.data_dir, reverse=True)
+    # 入力から陽に計算できるものはモデルの出力値を使わない
     # https://www.kaggle.com/competitions/leap-atmospheric-physics-ai-climsim/discussion/502484
-    if True:
-        columns = [f"state_q0002_{i}" for i in range(30)]
-        input_df = pl.read_csv(Path(cfg.dir.data_dir, "test.csv"), columns=columns)
-        for i in range(30):
-            df = df.with_columns(
-                pl.lit(-input_df[f"state_q0002_{i}"] / 1200).alias(f"ptend_q0002_{i}")
-            )
+    n = 30
+    columns = [f"state_q0002_{i}" for i in range(n)]
+    input_df = pl.read_csv(Path(cfg.dir.data_dir, "test.csv"), columns=columns)
+    for i in range(n):
+        df = df.with_columns(
+            pl.lit(-input_df[f"state_q0002_{i}"] / 1200).alias(f"ptend_q0002_{i}")
+        )
     # clipping
     df = df.with_columns(
         pl.col(["cam_out_NETSW", "cam_out_PRECSC", "cam_out_PRECC", "cam_out_SOLS", "cam_out_SOLL", "cam_out_SOLSD", "cam_out_SOLLD"]).clip(lower_bound=0.0)
     )
+    # うまく学習できていないカラムを平均値で置き換え
+    with open(Path(cfg.dir.model_dir, cfg.exp_name, cfg.dir_name, "broken_columns.yaml"), "rb") as f:
+        broken_label_columns = pickle.load(f)
+    stats_df = pl.read_parquet(Path(cfg.dir.data_dir, "label_stats.parquet"))
+    for col in broken_label_columns:
+        df = df.with_columns(pl.lit(stats_df[0, col]).alias(col))
     # 重みをかける
     weight_df = pl.read_csv(Path(cfg.dir.data_dir, "sample_submission.csv"), n_rows=1)[:, 1:]
     columns = weight_df.columns
@@ -41,6 +49,7 @@ def post_process(df, label_columns, cfg):
 
 @hydra.main(config_path=None, config_name="config", version_base=None)
 def main(cfg):
+    setup(cfg)
     cfg.stage = "test"
     datamodule = LeapDataModule(cfg)
     cfg.model.params.input_size = datamodule.input_size

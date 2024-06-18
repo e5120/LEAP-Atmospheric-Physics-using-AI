@@ -11,7 +11,9 @@ class LeapModelModule(L.LightningModule):
         super().__init__()
         self.cfg = cfg
         self.model = getattr(leap.model, cfg.model.name)(**cfg.model.params)
-        self.metrics = R2Score(cfg.model.params.output_size, multioutput="raw_values")
+        self.output_size = cfg.model.params.output_size
+        self.metrics = R2Score(self.output_size, multioutput="raw_values")
+        self.broken_mask = None
 
     def forward(self, batch):
         return self.model(batch)
@@ -36,12 +38,17 @@ class LeapModelModule(L.LightningModule):
 
     def on_validation_epoch_end(self):
         val_r2 = self.metrics.compute()
-        val_r2_sub = val_r2[val_r2 > 1e-6]
-        self.log("val_r2", val_r2_sub.mean(), on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log("val_r2_all", val_r2.mean(), on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log("val_r2_std", val_r2_sub.std(), on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-        # self.log("val_r2_all_std", val_r2.std(), on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log("r2_broken", len(val_r2) - len(val_r2_sub), on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        broken_mask = val_r2 > 1e-6
+        val_r2_sub = val_r2[broken_mask]
+        self.broken_mask = broken_mask.detach().to("cpu").numpy()
+        val_logs = {
+            "val_r2": val_r2_sub.mean(),
+            "val_r2_clipped": val_r2_sub.sum() / self.output_size,
+            "val_r2_all": val_r2.mean(),
+            # "val_r2_std": val_r2_sub.std(),
+            "r2_broken": len(val_r2) - len(val_r2_sub),
+        }
+        self.log_dict(val_logs, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         self.metrics.reset()
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
