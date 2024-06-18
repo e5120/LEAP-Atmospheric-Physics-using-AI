@@ -11,6 +11,7 @@ class LeapModelModule(L.LightningModule):
         super().__init__()
         self.cfg = cfg
         self.model = getattr(leap.model, cfg.model.name)(**cfg.model.params)
+        print(self.model)
         self.output_size = cfg.model.params.output_size
         self.metrics = R2Score(self.output_size, multioutput="raw_values")
         self.broken_mask = None
