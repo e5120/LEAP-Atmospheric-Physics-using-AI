@@ -3,6 +3,7 @@ from pathlib import Path
 import hydra
 import polars as pl
 import numpy as np
+import tensorflow as tf
 import torch
 import lightning as L
 from lightning.pytorch.callbacks import (
@@ -20,7 +21,13 @@ def setup(cfg):
     L.seed_everything(cfg["seed"])
     if "benchmark" in cfg:
         torch.backends.cudnn.benchmark = cfg.benchmark
-
+    physical_devices = tf.config.list_physical_devices('GPU')
+    if len(physical_devices) > 0:
+        for device in physical_devices:
+            tf.config.experimental.set_memory_growth(device, True)
+            print('{} memory growth: {}'.format(device, tf.config.experimental.get_memory_growth(device)))
+    else:
+        print("Not enough GPU hardware devices available")
 
 def get_num_training_steps(n_data, cfg):
     num_devices = 1 if isinstance(cfg.trainer.devices, int) else len(cfg.trainer.devices)
