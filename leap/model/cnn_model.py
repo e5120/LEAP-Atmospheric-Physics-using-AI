@@ -43,8 +43,8 @@ class CNNModel(BaseModel):
         return nn.Sequential(*layers)
 
     def forward(self, batch):
-        v = batch["vector"]  # (bs, num_features, seq_len)
-        s = batch["scalar"].unsqueeze(dim=-1).repeat(1, 1, v.size(-1))  # # (bs, num_features, seq_len)
+        v = batch["x_vector"]  # (bs, num_features, seq_len)
+        s = batch["x_scalar"].unsqueeze(dim=-1).repeat(1, 1, v.size(-1))  # # (bs, num_features, seq_len)
         x = torch.cat([v, s], dim=1)
 
         out = self.conv(x)  # (bs, ch, seq_len)
