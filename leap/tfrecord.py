@@ -98,22 +98,32 @@ def read_tfrecord(example, stage):
 
 
 def get_dataset(files, batch_size=1024, stage="train"):
-    AUTO = tf.data.experimental.AUTOTUNE
-    ds = tf.data.TFRecordDataset(files, num_parallel_reads=AUTO, compression_type="GZIP")
-    # if stage in ["val", "test"]:
-    #     ds = ds.cache()
-    # ds = ds.repeat()
+    AUTO = tf.data.AUTOTUNE
     if stage == "train":
-        ds = ds.shuffle(1024 * 2)
-        opt = tf.data.Options()
-        opt.experimental_deterministic = False
-        ds = ds.with_options(opt)
-    ds = (
-        ds
-        .map(lambda example: read_tfrecord(example, stage), num_parallel_calls=AUTO)
-        .batch(batch_size, drop_remainder=True if stage=="train" else False)
-        .prefetch(AUTO)
-    )
+        options = tf.data.Options()
+        options.deterministic = True
+        ds = (
+            tf.data.Dataset.from_tensor_slices(files)
+            .with_options(options)
+            .shuffle(100)
+            .interleave(
+                lambda file: tf.data.TFRecordDataset(file, num_parallel_reads=AUTO, compression_type="GZIP").map(lambda example: read_tfrecord(example, stage), num_parallel_calls=AUTO),
+                num_parallel_calls=AUTO,
+                cycle_length=10,
+                block_length=1000,
+                deterministic=True,
+            )
+            .shuffle(4*batch_size)
+            .batch(batch_size)
+            .prefetch(AUTO)
+        )
+    else:
+       ds = (
+          tf.data.TFRecordDataset(files, num_parallel_reads=AUTO, compression_type="GZIP")
+          .map(lambda example: read_tfrecord(example, stage))
+          .batch(batch_size)
+          .prefetch(AUTO)
+       )
     return tfds.as_numpy(ds)
 
 
