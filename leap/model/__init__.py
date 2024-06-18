@@ -4,3 +4,5 @@ from leap.model.ffn_model_v2 import FFNModelV2
 from leap.model.cnn_model import CNNModel
 from leap.model.light_cnn_model import LightCNNModel
 from leap.model.lstm_model import LSTMModel
+from leap.model.attn_model import AttnModel
+from leap.model.sep_ffn_model import SeparateFFNModel
