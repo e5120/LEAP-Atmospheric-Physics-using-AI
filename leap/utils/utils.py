@@ -29,6 +29,7 @@ def setup(cfg):
     else:
         print("Not enough GPU hardware devices available")
 
+
 def get_num_training_steps(n_data, cfg):
     num_devices = 1 if isinstance(cfg.trainer.devices, int) else len(cfg.trainer.devices)
     steps_per_epoch = n_data // cfg.batch_size // num_devices // cfg.trainer.accumulate_grad_batches
