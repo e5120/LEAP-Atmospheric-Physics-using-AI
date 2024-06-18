@@ -6,8 +6,8 @@ from leap.model import BaseModel
 
 
 class MLPEmbedding(nn.Module):
-    def __init__(self, input_size, output_size, hidden_sizes=[], p=0.0, ignore_mask=None):
-        super().__init__(ignore_mask=ignore_mask)
+    def __init__(self, input_size, output_size, hidden_sizes=[], p=0.0):
+        super().__init__()
         mlp_layers = []
         hidden_sizes = [input_size] + hidden_sizes
         for i in range(len(hidden_sizes)-1):
@@ -23,8 +23,8 @@ class MLPEmbedding(nn.Module):
 
 
 class AttnModel(BaseModel):
-    def __init__(self, input_size, output_size, num_scalar_feats, num_vector_feats, d_model=512, nhead=8, dim_feedforward=2048, num_layers=6, hidden_sizes=[256,512,512,256], p=0.1):
-        super().__init__()
+    def __init__(self, input_size, output_size, num_scalar_feats, num_vector_feats, d_model=512, nhead=8, dim_feedforward=2048, num_layers=6, hidden_sizes=[256,512,512,256], p=0.1, ignore_mask=None):
+        super().__init__(ignore_mask=ignore_mask)
         self.scalar_embedding = MLPEmbedding(num_scalar_feats, d_model, hidden_sizes=[], p=p)
         self.vector_embedding = MLPEmbedding(num_vector_feats, d_model, hidden_sizes=[], p=p)
         self.positional_embedding = nn.Embedding(60, d_model)
