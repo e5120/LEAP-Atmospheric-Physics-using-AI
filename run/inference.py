@@ -68,6 +68,7 @@ def main(cfg):
         modelmodule = LeapModelModule.load_from_checkpoint(
             checkpoint_path=model_path,
             cfg=cfg,
+            label_columns=label_columns,
         )
         predictions = trainer.predict(modelmodule, datamodule=datamodule)
         predictions = torch.cat(predictions).double().numpy()
