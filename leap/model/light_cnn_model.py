@@ -16,6 +16,7 @@ class LightCNNModel(BaseModel):
         self.cnn_block2 = self._make_cnn_layer(out_channels, kernel_size)
         self.conv2 = nn.Conv1d(out_channels, 14, 1, padding="same")
         self.fc = nn.Linear(out_channels, output_size)
+        # self.apply(self._init_weight)
 
     def _make_cnn_layer(self, num_channels, kernel_size):
         return nn.Sequential(
@@ -53,3 +54,9 @@ class LightCNNModel(BaseModel):
         return {
             "logits": logits,
         }
+
+    def _init_weight(self, x):
+        if isinstance(x, nn.Conv1d):
+            nn.init.xavier_normal_(x.weight, gain=nn.init.calculate_gain("relu"))
+            if x.bias is not None:
+                nn.init.zeros_(x.bias)

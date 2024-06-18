@@ -6,8 +6,8 @@ from leap.model import BaseModel
 
 
 class LSTMModel(BaseModel):
-    def __init__(self, input_size, output_size, hidden_dim, num_scalar_feats, num_vector_feats, n_layers=1, bidirectional=True, p=0.0):
-        super().__init__()
+    def __init__(self, input_size, output_size, hidden_dim, num_scalar_feats, num_vector_feats, n_layers=1, bidirectional=True, p=0.0, ignore_mask=None):
+        super().__init__(ignore_mask=ignore_mask)
         self.hidden_dim = hidden_dim
         scalar_hidden_dim = 4*n_layers*hidden_dim if bidirectional else 2*n_layers*hidden_dim
         self.scalar_fc = nn.Sequential(

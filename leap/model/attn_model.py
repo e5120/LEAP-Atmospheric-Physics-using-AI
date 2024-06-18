@@ -6,8 +6,8 @@ from leap.model import BaseModel
 
 
 class MLPEmbedding(nn.Module):
-    def __init__(self, input_size, output_size, hidden_sizes=[], p=0.0):
-        super().__init__()
+    def __init__(self, input_size, output_size, hidden_sizes=[], p=0.0, ignore_mask=None):
+        super().__init__(ignore_mask=ignore_mask)
         mlp_layers = []
         hidden_sizes = [input_size] + hidden_sizes
         for i in range(len(hidden_sizes)-1):

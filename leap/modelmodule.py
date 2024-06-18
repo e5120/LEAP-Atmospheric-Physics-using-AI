@@ -1,3 +1,7 @@
+from pathlib import Path
+
+import polars as pl
+import torch
 import lightning as L
 from torchmetrics import R2Score
 
@@ -7,10 +11,23 @@ import leap.scheduler
 
 
 class LeapModelModule(L.LightningModule):
-    def __init__(self, cfg):
+    def __init__(self, label_columns, cfg):
         super().__init__()
         self.cfg = cfg
-        self.model = getattr(leap.model, cfg.model.name)(**cfg.model.params)
+        if cfg.ignore_mask:
+            sample_df = pl.read_csv(Path(cfg.dir.data_dir, "sample_submission.csv"), n_rows=1)
+            ignore_cols = sample_df.select(pl.col(pl.Int64)).columns
+            ignore_mask = []
+            for col in label_columns:
+                if col in ignore_cols:
+                    ignore_mask.append(False)
+                else:
+                    ignore_mask.append(True)
+            ignore_mask = torch.BoolTensor(ignore_mask)
+        else:
+            ignore_mask = None
+        self.ignore_mask = ignore_mask
+        self.model = getattr(leap.model, cfg.model.name)(ignore_mask=ignore_mask, **cfg.model.params)
         print(self.model)
         self.output_size = cfg.model.params.output_size
         self.metrics = R2Score(self.output_size, multioutput="raw_values")
@@ -39,6 +56,8 @@ class LeapModelModule(L.LightningModule):
 
     def on_validation_epoch_end(self):
         val_r2 = self.metrics.compute()
+        if self.ignore_mask is not None:
+            val_r2[~self.ignore_mask] = 1.0
         broken_mask = val_r2 > 1e-6
         val_r2_sub = val_r2[broken_mask]
         self.broken_mask = broken_mask.detach().to("cpu").numpy()

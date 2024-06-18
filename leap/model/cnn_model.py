@@ -8,8 +8,9 @@ from leap.model.modules import ResnetBlock
 
 class CNNModel(BaseModel):
     def __init__(self, input_size, output_size, out_channels=128, resnet_blocks=9,
-                 kernel_size=3, num_scalar_feats=16, num_vector_feats=9, seq_len=60, dropout=0.1):
-        super().__init__()
+                 kernel_size=3, num_scalar_feats=16, num_vector_feats=9, seq_len=60,
+                 dropout=0.1, ignore_mask=None):
+        super().__init__(ignore_mask=ignore_mask)
         num_feats = num_scalar_feats + num_vector_feats
         self.conv = nn.Conv1d(
             num_feats, out_channels, kernel_size=kernel_size,

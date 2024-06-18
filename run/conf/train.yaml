@@ -63,3 +63,5 @@ used_output_cols:
   # - ptend_t
 unused_input_cols:
 unused_output_cols:
+
+ignore_mask: True

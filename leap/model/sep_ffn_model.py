@@ -6,8 +6,8 @@ from leap.utils import IN_COLUMNS, OUT_SCALAR_COLUMNS, OUT_VECTOR_COLUMNS
 
 
 class SeparateFFNModel(BaseModel):
-    def __init__(self, input_size, hidden_sizes, output_size, dropout=0.1):
-        super().__init__()
+    def __init__(self, input_size, hidden_sizes, output_size, dropout=0.1, ignore_mask=None):
+        super().__init__(ignore_mask=ignore_mask)
         layer_dict = {}
         for col in OUT_SCALAR_COLUMNS:
             layer_dict[col] = self._make_mlp(input_size, hidden_sizes, 1, dropout=dropout)

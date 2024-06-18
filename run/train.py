@@ -29,7 +29,8 @@ def main(cfg):
         cfg.scheduler.params.T_max = max_steps
     if "total_steps" in cfg.scheduler.params:
         cfg.scheduler.params.total_steps = max_steps
-    modelmodule = LeapModelModule(cfg)
+    label_columns = get_label_columns(datamodule.label_columns)
+    modelmodule = LeapModelModule(label_columns, cfg)
     callbacks = build_callbacks(cfg)
     name = None if cfg.exp_name == "dummy" else cfg.exp_name
     logger = WandbLogger(project="leap", name=name) if cfg.logger else None
@@ -40,7 +41,6 @@ def main(cfg):
     )
     trainer.fit(modelmodule, datamodule)
     # 後処理 (うまく学習できていないカラムを記録)
-    label_columns = get_label_columns(datamodule.label_columns)
     broken_mask = modelmodule.broken_mask
     broken_label_columns = np.array(label_columns)[~broken_mask]
     print(broken_label_columns)
