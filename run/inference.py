@@ -26,7 +26,7 @@ def post_process(df, label_columns, cfg):
         pl.col(["cam_out_NETSW", "cam_out_PRECSC", "cam_out_PRECC", "cam_out_SOLS", "cam_out_SOLL", "cam_out_SOLSD", "cam_out_SOLLD"]).clip(lower_bound=0.0)
     )
     # うまく学習できていないカラムを平均値で置き換え
-    with open(Path(cfg.dir.model_dir, cfg.exp_name, cfg.dir_name, "broken_columns.yaml"), "rb") as f:
+    with open(Path(cfg.dir.model_dir, cfg.exp_name, cfg.dir_name, "broken_columns.pkl"), "rb") as f:
         broken_label_columns = pickle.load(f)
     stats_df = pl.read_parquet(Path(cfg.dir.data_dir, "label_stats.parquet"))
     for col in broken_label_columns:

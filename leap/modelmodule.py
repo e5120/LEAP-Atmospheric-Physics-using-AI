@@ -1,5 +1,7 @@
+import pickle
 from pathlib import Path
 
+import numpy as np
 import polars as pl
 import torch
 import lightning as L
@@ -14,6 +16,9 @@ class LeapModelModule(L.LightningModule):
     def __init__(self, label_columns, cfg):
         super().__init__()
         self.cfg = cfg
+        self.label_columns = np.array(label_columns)
+        self.output_dir = Path(cfg.dir.model_dir, cfg.exp_name, cfg.dir_name)
+        self.monitor = cfg.model_checkpoint.monitor
         if cfg.ignore_mask:
             sample_df = pl.read_csv(Path(cfg.dir.data_dir, "sample_submission.csv"), n_rows=1)
             ignore_cols = sample_df.select(pl.col(pl.Int64)).columns
@@ -31,7 +36,6 @@ class LeapModelModule(L.LightningModule):
         print(self.model)
         self.output_size = cfg.model.params.output_size
         self.metrics = R2Score(self.output_size, multioutput="raw_values")
-        self.broken_mask = None
 
     def forward(self, batch):
         return self.model(batch)
@@ -60,7 +64,6 @@ class LeapModelModule(L.LightningModule):
             val_r2[~self.ignore_mask] = 1.0
         broken_mask = val_r2 > 1e-6
         val_r2_sub = val_r2[broken_mask]
-        self.broken_mask = broken_mask.detach().to("cpu").numpy()
         val_logs = {
             "val_r2": val_r2_sub.mean(),
             "val_r2_clipped": val_r2_sub.sum() / self.output_size,
@@ -68,6 +71,14 @@ class LeapModelModule(L.LightningModule):
             # "val_r2_std": val_r2_sub.std(),
             "r2_broken": len(val_r2) - len(val_r2_sub),
         }
+        # うまく学習できていないカラムを記録
+        best_score = self.trainer.checkpoint_callback.best_model_score
+        if best_score is not None:
+            mode = self.trainer.checkpoint_callback.mode
+            if (mode == "max" and val_logs[self.monitor] >= best_score) or (mode == "min" and val_logs[self.monitor] <= best_score):
+                broken_label_columns = self.label_columns[~broken_mask.detach().to("cpu").numpy()]
+                with open(Path(self.output_dir, "broken_columns.pkl"), "wb") as f:
+                    pickle.dump(broken_label_columns, f)
         self.log_dict(val_logs, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         self.metrics.reset()
 

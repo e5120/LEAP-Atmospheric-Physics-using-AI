@@ -1,8 +1,6 @@
 import yaml
-import pickle
 from pathlib import Path
 
-import numpy as np
 import hydra
 import lightning as L
 from lightning.pytorch.loggers import WandbLogger
@@ -40,13 +38,6 @@ def main(cfg):
         **cfg.trainer,
     )
     trainer.fit(modelmodule, datamodule)
-    # 後処理 (うまく学習できていないカラムを記録)
-    broken_mask = modelmodule.broken_mask
-    broken_label_columns = np.array(label_columns)[~broken_mask]
-    print(broken_label_columns)
-    print(f"# of broken columns: {len(broken_label_columns)}")
-    with open(Path(cfg.dir.model_dir, cfg.exp_name, cfg.dir_name, "broken_columns.yaml"), "wb") as f:
-        pickle.dump(broken_label_columns, f)
 
 
 if __name__=="__main__":
