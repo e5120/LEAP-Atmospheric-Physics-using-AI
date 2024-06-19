@@ -21,7 +21,8 @@ class LeapModelModule(L.LightningModule):
         self.monitor = cfg.model_checkpoint.monitor
         if cfg.ignore_mask:
             sample_df = pl.read_csv(Path(cfg.dir.data_dir, "sample_submission.csv"), n_rows=1)
-            ignore_cols = sample_df.select(pl.col(pl.Int64)).columns
+            tgt_cols = np.where(sample_df[0, 1:].to_numpy()[0] == 0, True, False)
+            ignore_cols = np.array(sample_df.columns[1:])[tgt_cols]
             ignore_mask = []
             for col in label_columns:
                 if col in ignore_cols:
