@@ -22,20 +22,32 @@ $ export PYTHONPATH=.
 ## Prepare Data
 
 ```
-$ python run/prepare_data.py phase=split data_dir=/path/to/data  # It takes about 1 hour
-$ cp resources/* /path/to/data
-$ python run/prepare_data.py phase=generate data_dir=/path/to/data # It takes about 1 hour
-$ python run/prepare_data.py phase=tfrecord data_dir=/path/to/data # It takes about 2 hours
+$ export DATA_DIR=/path/to/data
+$ python run/prepare_data.py phase=split data_dir=$DATA_DIR  # It takes about 1 hour
+$ cp resources/* $DATA_DIR
+$ python run/prepare_data.py phase=generate data_dir=$DATA_DIR # It takes about 1 hour
+$ python run/prepare_data.py phase=tfrecord data_dir=$DATA_DIR # It takes about 2 hours
 ```
 
-## Train
+
+## Feedforward Network
+
+- CV :
+- public LB : 0.60847
+- private LB : 
 
 ```
-$ python run/train.py dataset=single_dataset model=ffn_model exp_name=exp001
+$ python run/train.py model=ffn_model exp_name=exp_ffn
+$ python run/inference.py --experimental-rerun=/path/to/repo/output/exp_ffn/single/.hydra/config.pickle
 ```
 
-## Inference
+## Transformer Encoder
+
+- CV :
+- public LB : 
+- private LB : 
 
 ```
-$ python run/inference.py --config-path=/path/to/repo/output/exp001/single/.hydra
+$ python run/train.py model=attn_model exp_name=exp_attn
+$ python run/inference.py --experimental-rerun=/path/to/repo/output/exp_attn/single/.hydra/config.pickle
 ```
