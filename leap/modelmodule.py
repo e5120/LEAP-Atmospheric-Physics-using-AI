@@ -65,7 +65,7 @@ class LeapModelModule(L.LightningModule):
         val_r2 = raw_val_r2.clone()
         if self.ignore_mask is not None:
             val_r2[~self.ignore_mask] = 1.0
-        broken_mask = raw_val_r2 < 1e-6
+        broken_mask = val_r2 < 1e-6
         val_r2[broken_mask] = 0.0
         val_logs = {
             "val_r2": val_r2.mean(),
