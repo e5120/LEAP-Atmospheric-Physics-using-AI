@@ -12,7 +12,6 @@ from leap.utils import setup, get_num_training_steps, build_callbacks, get_label
 @hydra.main(config_path="conf", config_name="train", version_base=None)
 def main(cfg):
     setup(cfg)
-    cfg.output_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
     datamodule = LeapDataModule(cfg)
     cfg.model.params.input_size = datamodule.input_size
     cfg.model.params.output_size = datamodule.output_size
