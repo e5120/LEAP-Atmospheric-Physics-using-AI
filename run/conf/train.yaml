@@ -3,10 +3,13 @@ hydra:
     name: train
     chdir: true
   run:
-    dir: ${dir.model_dir}/${exp_name}/${dir_name}
+    dir: ${dir.model_dir}/${exp_name}/single
   sweep:
     dir: ${dir.model_dir}/${exp_name}
     subdir: run${hydra.job.num}
+  callbacks:
+    save_job_info:
+      _target_: hydra.experimental.callbacks.PickleJobInfoCallback
 
 defaults:
   - _self_
@@ -15,7 +18,7 @@ defaults:
   - optimizer: adam
   - scheduler: cosine_with_restart_warmup
 
-dir_name: single
+output_dir: ~
 exp_name: dummy
 stage: train
 num_train_files: ~
@@ -49,18 +52,7 @@ model_checkpoint:
   verbose: 1
 
 used_input_cols:
-  # - state_t
-  # - state_q0001
-  # - state_q0002
-  # - state_q0003
-  # - state_u
-  # - state_v
-  # - state_ps
-  # - pbuf_LHFLX
-  # - pbuf_SHFLX
-  # - cam_in_LWUP
 used_output_cols:
-  # - ptend_t
 unused_input_cols:
 unused_output_cols:
 

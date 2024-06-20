@@ -26,7 +26,7 @@ def post_process(df, label_columns, cfg):
         pl.col(["cam_out_NETSW", "cam_out_PRECSC", "cam_out_PRECC", "cam_out_SOLS", "cam_out_SOLL", "cam_out_SOLSD", "cam_out_SOLLD"]).clip(lower_bound=0.0)
     )
     # うまく学習できていないカラムを平均値で置き換え
-    with open(Path(cfg.dir.model_dir, cfg.exp_name, cfg.dir_name, "broken_columns.pkl"), "rb") as f:
+    with open(Path(cfg.output_dir, "broken_columns.pkl"), "rb") as f:
         broken_label_columns = pickle.load(f)
     stats_df = pl.read_parquet(Path(cfg.dir.data_dir, "label_stats.parquet"))
     for col in broken_label_columns:
@@ -47,10 +47,11 @@ def post_process(df, label_columns, cfg):
     return df
 
 
-@hydra.main(config_path=None, config_name="config", version_base=None)
+@hydra.main(config_path=None, config_name=None, version_base=None)
 def main(cfg):
     setup(cfg)
     cfg.stage = "test"
+    cfg.output_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
     datamodule = LeapDataModule(cfg)
     cfg.model.params.input_size = datamodule.input_size
     cfg.model.params.output_size = datamodule.output_size
@@ -58,11 +59,11 @@ def main(cfg):
     label_columns = get_label_columns(datamodule.label_columns)
     trainer = L.Trainer(**cfg.trainer)
     if cfg.dir.name == "kaggle":
-        model_paths = Path(cfg.dir.model_dir, f"lb-{cfg.exp_name}").glob("*.ckpt")
         output_dir = Path("/kaggle/working")
+        model_paths = Path(cfg.dir.model_dir, f"lb-{cfg.exp_name}").glob("*.ckpt")
     else:
-        model_paths = Path(cfg.dir.model_dir, cfg.exp_name, cfg.dir_name).glob("*.ckpt")
-        output_dir = Path(cfg.dir.model_dir, cfg.exp_name, cfg.dir_name)
+        output_dir = Path(cfg.output_dir)
+        model_paths = output_dir.glob("*.ckpt")
     for model_path in model_paths:
         print(model_path)
         modelmodule = LeapModelModule.load_from_checkpoint(
