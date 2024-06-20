@@ -1,3 +1,4 @@
+# python run/inference.py --experimental-rerun=/path/to/config.pickle
 import pickle
 from pathlib import Path
 
@@ -12,6 +13,16 @@ from leap.utils import setup, normalize, get_label_columns
 
 def post_process(df, cfg):
     df = normalize(df, [], df.columns[1:], "standard", cfg.dir.data_dir, reverse=True)
+    # うまく学習できていないカラムを平均値で置き換え
+    with open(Path(cfg.output_dir, "broken_columns.pkl"), "rb") as f:
+        broken_label_columns = pickle.load(f)
+    stats_df = pl.read_parquet(Path(cfg.dir.data_dir, "label_stats.parquet"))
+    for col in broken_label_columns:
+        df = df.with_columns(pl.lit(stats_df[0, col]).alias(col))
+    # clipping (0以上の値しか取らないのに，負の値を予測した場合に0にする)
+    df = df.with_columns(
+        pl.col(["cam_out_NETSW", "cam_out_PRECSC", "cam_out_PRECC", "cam_out_SOLS", "cam_out_SOLL", "cam_out_SOLSD", "cam_out_SOLLD"]).clip(lower_bound=0.0)
+    )
     # 入力から陽に計算できるものはモデルの出力値を使わない
     # https://www.kaggle.com/competitions/leap-atmospheric-physics-ai-climsim/discussion/502484
     n = 30
@@ -21,16 +32,6 @@ def post_process(df, cfg):
         df = df.with_columns(
             pl.lit(-input_df[f"state_q0002_{i}"] / 1200).alias(f"ptend_q0002_{i}")
         )
-    # clipping (0以上の値しか取らないのに，負の値を予測した場合に0にする)
-    df = df.with_columns(
-        pl.col(["cam_out_NETSW", "cam_out_PRECSC", "cam_out_PRECC", "cam_out_SOLS", "cam_out_SOLL", "cam_out_SOLSD", "cam_out_SOLLD"]).clip(lower_bound=0.0)
-    )
-    # うまく学習できていないカラムを平均値で置き換え
-    with open(Path(cfg.output_dir, "broken_columns.pkl"), "rb") as f:
-        broken_label_columns = pickle.load(f)
-    stats_df = pl.read_parquet(Path(cfg.dir.data_dir, "label_stats.parquet"))
-    for col in broken_label_columns:
-        df = df.with_columns(pl.lit(stats_df[0, col]).alias(col))
     # 重みをかける
     weight_df = pl.read_csv(Path(cfg.dir.data_dir, "sample_submission.csv"), n_rows=1)[:, 1:]
     columns = weight_df.columns
