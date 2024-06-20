@@ -10,8 +10,8 @@ from leap import LeapDataModule, LeapModelModule
 from leap.utils import setup, normalize, get_label_columns
 
 
-def post_process(df, label_columns, cfg):
-    df = normalize(df, [], label_columns, "standard", cfg.dir.data_dir, reverse=True)
+def post_process(df, cfg):
+    df = normalize(df, [], df.columns[1:], "standard", cfg.dir.data_dir, reverse=True)
     # 入力から陽に計算できるものはモデルの出力値を使わない
     # https://www.kaggle.com/competitions/leap-atmospheric-physics-ai-climsim/discussion/502484
     n = 30
@@ -21,7 +21,7 @@ def post_process(df, label_columns, cfg):
         df = df.with_columns(
             pl.lit(-input_df[f"state_q0002_{i}"] / 1200).alias(f"ptend_q0002_{i}")
         )
-    # clipping
+    # clipping (0以上の値しか取らないのに，負の値を予測した場合に0にする)
     df = df.with_columns(
         pl.col(["cam_out_NETSW", "cam_out_PRECSC", "cam_out_PRECC", "cam_out_SOLS", "cam_out_SOLL", "cam_out_SOLSD", "cam_out_SOLLD"]).clip(lower_bound=0.0)
     )
@@ -35,13 +35,10 @@ def post_process(df, label_columns, cfg):
     weight_df = pl.read_csv(Path(cfg.dir.data_dir, "sample_submission.csv"), n_rows=1)[:, 1:]
     columns = weight_df.columns
     for col in columns:
-        if col in df:
-            df = df.with_columns(
-                pl.col(col) * weight_df[0, col]
-            )
-        else:
-            print(col)
-            df = df.with_columns(pl.lit(0).alias(col))
+        assert col in df
+        df = df.with_columns(
+            pl.col(col) * weight_df[0, col]
+        )
     # 提出用の並び順にする
     df = df.select(pl.col(["sample_id"] + columns))
     return df
@@ -51,7 +48,6 @@ def post_process(df, label_columns, cfg):
 def main(cfg):
     setup(cfg)
     cfg.stage = "test"
-    cfg.output_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
     datamodule = LeapDataModule(cfg)
     cfg.model.params.input_size = datamodule.input_size
     cfg.model.params.output_size = datamodule.output_size
@@ -80,7 +76,7 @@ def main(cfg):
                 for i, label_name in enumerate(label_columns)
             ]
         )
-        submit_df = post_process(submit_df, label_columns, cfg)
+        submit_df = post_process(submit_df, cfg)
         submit_df.write_csv(Path(output_dir, f"submission_{model_path.stem}.csv"))
 
 
