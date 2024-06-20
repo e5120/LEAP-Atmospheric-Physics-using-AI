@@ -14,8 +14,9 @@ from lightning.pytorch.callbacks import (
 
 
 def setup(cfg):
+    cfg.output_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
     if cfg.model_checkpoint.dirpath:
-        cfg.model_checkpoint.dirpath = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
+        cfg.model_checkpoint.dirpath = cfg.output_dir
     else:
         cfg.model_checkpoint.dirpath = None
     L.seed_everything(cfg["seed"])
