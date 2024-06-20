@@ -5,11 +5,10 @@
 - 64GB RAM
 - 2x NVIDIA GeForce GTX 1080Ti
 
-
 ## Download Data
 
 ```
-$ kaggle competitions download -c ClimSim
+$ kaggle competitions download -c leap-atmospheric-physics-ai-climsim
 ```
 
 ## Download this repository
@@ -23,9 +22,10 @@ $ export PYTHONPATH=.
 ## Prepare Data
 
 ```
-$ python run/prepare_data.py phase=split data_dir=/path/to/data  # It takes about 1hour
+$ python run/prepare_data.py phase=split data_dir=/path/to/data  # It takes about 1 hour
 $ cp resources/* /path/to/data
-$ python run/prepare_data.py phase=generate data_dir=/path/to/data # It takes about 1hour
+$ python run/prepare_data.py phase=generate data_dir=/path/to/data # It takes about 1 hour
+$ python run/prepare_data.py phase=tfrecord data_dir=/path/to/data # It takes about 2 hours
 ```
 
 ## Train
