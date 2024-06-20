@@ -60,27 +60,27 @@ class LeapModelModule(L.LightningModule):
         self.metrics.update(ret["logits"], batch["labels"])
 
     def on_validation_epoch_end(self):
-        val_r2 = self.metrics.compute()
+        raw_val_r2 = self.metrics.compute()
+        self.metrics.reset()
+        val_r2 = raw_val_r2.clone()
         if self.ignore_mask is not None:
             val_r2[~self.ignore_mask] = 1.0
-        broken_mask = val_r2 > 1e-6
-        val_r2_sub = val_r2[broken_mask]
+        broken_mask = raw_val_r2 < 1e-6
+        val_r2[broken_mask] = 0.0
         val_logs = {
-            "val_r2": val_r2_sub.mean(),
-            "val_r2_clipped": val_r2_sub.sum() / self.output_size,
-            "val_r2_all": val_r2.mean(),
-            # "val_r2_std": val_r2_sub.std(),
-            "r2_broken": len(val_r2) - len(val_r2_sub),
+            "val_r2": val_r2.mean(),
+            "r2_raw": raw_val_r2.mean(),
+            # "r2_std": val_r2.std(),
+            "r2_broken": broken_mask.sum(),
         }
         self.log_dict(val_logs, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.metrics.reset()
         # うまく学習できていないカラムを記録
         best_score = self.trainer.checkpoint_callback.best_model_score
         mode = self.trainer.checkpoint_callback.mode
         if best_score is None or \
            (mode == "max" and val_logs[self.monitor] >= best_score) or \
            (mode == "min" and val_logs[self.monitor] <= best_score):
-            broken_label_columns = self.label_columns[~broken_mask.detach().to("cpu").numpy()]
+            broken_label_columns = self.label_columns[broken_mask.detach().to("cpu").numpy()]
             with open(Path(self.output_dir, "broken_columns.pkl"), "wb") as f:
                 pickle.dump(broken_label_columns, f)
 
