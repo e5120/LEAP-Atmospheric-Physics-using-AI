@@ -41,10 +41,32 @@ $ python run/train.py model=ffn_model exp_name=exp_ffn
 $ python run/inference.py --experimental-rerun=/path/to/repo/output/exp_ffn/single/.hydra/config.pickle
 ```
 
+## CNN Model
+
+- CV : 0.6616
+- public LB : 0.67349
+- private LB : 
+
+```
+$ python run/train.py model=light_cnn_model exp_name=exp_cnn
+$ python run/inference.py --experimental-rerun=/path/to/repo/output/exp_cnn/single/.hydra/config.pickle
+```
+
+## Resnet Model
+
+- CV : 
+- public LB : 
+- private LB : 
+
+```
+$ python run/train.py model=cnn_model exp_name=exp_resnet
+$ python run/inference.py --experimental-rerun=/path/to/repo/output/exp_resnet/single/.hydra/config.pickle
+```
+
 ## Transformer Encoder
 
-- CV :
-- public LB : 
+- CV : 0.6395
+- public LB : 0.65343
 - private LB : 
 
 ```
