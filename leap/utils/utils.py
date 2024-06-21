@@ -53,7 +53,7 @@ def build_callbacks(cfg):
     return callbacks
 
 
-def normalize(df, feat_cols, label_cols, method, path, reverse=False, eps=1e-10):
+def normalize(df, feat_cols, label_cols, method, path, reverse=False, eps=1e-52):
     if feat_cols:
         x_stats = pl.read_parquet(Path(path, "feat_stats.parquet")).select(feat_cols).to_numpy()
         x_mat = df.select(feat_cols).to_numpy()
