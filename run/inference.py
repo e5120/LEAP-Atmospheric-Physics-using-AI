@@ -8,7 +8,16 @@ import polars as pl
 import lightning as L
 
 from leap import LeapDataModule, LeapModelModule
-from leap.utils import setup, normalize, get_label_columns
+from leap.utils import (
+    setup,
+    normalize,
+    get_label_columns,
+    IN_SCALAR_COLUMNS,
+    IN_VECTOR_COLUMNS,
+    OUT_SCALAR_COLUMNS,
+    OUT_VECTOR_COLUMNS,
+    OUT_COLUMNS,
+)
 
 
 def post_process(df, cfg):
@@ -51,10 +60,10 @@ def main(cfg):
     setup(cfg)
     cfg.stage = "test"
     datamodule = LeapDataModule(cfg)
-    cfg.model.params.input_size = datamodule.input_size
-    cfg.model.params.output_size = datamodule.output_size
+    cfg.model.params.input_size = len(IN_SCALAR_COLUMNS) + 60 * len(IN_VECTOR_COLUMNS)
+    cfg.model.params.output_size = len(OUT_SCALAR_COLUMNS) + 60 * len(OUT_VECTOR_COLUMNS)
     test_df = pl.read_parquet(Path(cfg.dir.data_dir, "processed_test.parquet"), columns=["sample_id"])
-    label_columns = get_label_columns(datamodule.label_columns)
+    label_columns = get_label_columns(OUT_COLUMNS)
     trainer = L.Trainer(**cfg.trainer)
     if cfg.dir.name == "kaggle":
         output_dir = Path("/kaggle/working")

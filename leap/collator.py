@@ -4,7 +4,7 @@ import torch
 from leap.utils import IN_VECTOR_COLUMNS, IN_COLUMNS, OUT_COLUMNS
 
 
-def simple_collate_fn(batch, feat_cols, label_cols, stage):
+def simple_collate_fn(batch, stage):
     for col in IN_COLUMNS:
         batch[col] = torch.from_numpy(batch[col])
     if stage != "test":
@@ -17,16 +17,16 @@ def simple_collate_fn(batch, feat_cols, label_cols, stage):
     return batch
 
 
-def single_collate_fn(batch, feat_cols, label_cols, stage):
+def single_collate_fn(batch, stage):
     inputs = []
-    for col in feat_cols:
+    for col in IN_COLUMNS:
         inputs.append(
             torch.from_numpy(batch[col].reshape(batch[col].shape[0], -1))
         )
     inputs = torch.concat(inputs, dim=1)
     if stage != "test":
         labels = []
-        for col in label_cols:
+        for col in OUT_COLUMNS:
             labels.append(
                 torch.from_numpy(batch[col].reshape(batch[col].shape[0], -1))
             )
@@ -41,10 +41,10 @@ def single_collate_fn(batch, feat_cols, label_cols, stage):
         }
 
 
-def sequential_collate_fn(batch, feat_cols, label_cols, stage):
+def sequential_collate_fn(batch, stage):
     scalars = []
     vectors = []
-    for col in feat_cols:
+    for col in IN_COLUMNS:
         if col in IN_VECTOR_COLUMNS:
             vectors.append(batch[col])
         else:
@@ -53,7 +53,7 @@ def sequential_collate_fn(batch, feat_cols, label_cols, stage):
     vectors = torch.from_numpy(np.stack(vectors, axis=1))
     if stage != "test":
         labels = []
-        for col in label_cols:
+        for col in OUT_COLUMNS:
             labels.append(
                 torch.from_numpy(batch[col].reshape(batch[col].shape[0], -1))
             )

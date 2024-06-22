@@ -25,7 +25,7 @@ class LeapModelModule(L.LightningModule):
             ignore_cols = np.array(sample_df.columns[1:])[tgt_cols]
             ignore_mask = []
             for col in label_columns:
-                if col in ignore_cols:
+                if col in list(ignore_cols) + list(cfg.unused_output_cols):
                     ignore_mask.append(False)
                 else:
                     ignore_mask.append(True)

@@ -55,5 +55,20 @@ used_input_cols:
 used_output_cols:
 unused_input_cols:
 unused_output_cols:
+  - ptend_q0002_12
+  - ptend_q0002_13
+  - ptend_q0002_14
+  - ptend_q0002_15
+  - ptend_q0002_16
+  - ptend_q0002_17
+  - ptend_q0002_18
+  - ptend_q0002_19
+  - ptend_q0002_20
+  - ptend_q0002_21
+  - ptend_q0002_22
+  - ptend_q0002_23
+  - ptend_q0002_24
+  - ptend_q0002_25
+  - ptend_q0002_26
 
 ignore_mask: True
