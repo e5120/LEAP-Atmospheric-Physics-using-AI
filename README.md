@@ -43,12 +43,12 @@ $ python run/inference.py --experimental-rerun=/path/to/repo/output/exp_ffn/sing
 
 ## CNN Model
 
-- CV : 0.6616
-- public LB : 0.67349
+- CV : 0.6901
+- public LB : 0.73015
 - private LB : 
 
 ```
-$ python run/train.py model=light_cnn_model exp_name=exp_cnn
+$ python run/train.py model=light_cnn_model exp_name=exp_cnn model.params.out_channels=256
 $ python run/inference.py --experimental-rerun=/path/to/repo/output/exp_cnn/single/.hydra/config.pickle
 ```
 
