@@ -1,3 +1,4 @@
+import yaml
 import pickle
 from pathlib import Path
 
@@ -83,6 +84,12 @@ class LeapModelModule(L.LightningModule):
             broken_label_columns = self.label_columns[broken_mask.detach().to("cpu").numpy()]
             with open(Path(self.output_dir, "broken_columns.pkl"), "wb") as f:
                 pickle.dump(broken_label_columns, f)
+            each_r2 = {}
+            raw_val_r2 = raw_val_r2.detach().to("cpu").tolist()
+            for i in range(len(self.label_columns)):
+                each_r2[str(self.label_columns[i])] = raw_val_r2[i]
+            with open(Path(self.output_dir, "each_r2_score.yaml"), "w") as f:
+                yaml.safe_dump(each_r2, f)
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         logits = self.forward(batch)["logits"]
