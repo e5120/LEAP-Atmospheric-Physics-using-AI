@@ -29,10 +29,11 @@ logger: False
 
 trainer:
   max_epochs: 20
-  min_epochs: 100
+  min_epochs: 200
   enable_progress_bar: True
   accelerator: auto
   precision: "16-mixed"
+  # precision: 32
   # precision: 64
   gradient_clip_val: ~
   accumulate_grad_batches: 1
