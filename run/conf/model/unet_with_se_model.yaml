@@ -1,0 +1,13 @@
+name: "UNetWithSEModel"
+params: {
+  input_size: -1,
+  output_size: -1,
+  out_channels: 64,
+  kernel_size: 3,
+  depth: 2,
+  se_type: mul,
+  num_scalar_feats: 16,
+  num_vector_feats: 9,
+}
+collate_fn: "sequential_collate_fn"
+collate_params: {}
