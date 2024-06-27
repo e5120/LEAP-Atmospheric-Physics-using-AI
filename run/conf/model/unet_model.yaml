@@ -1,0 +1,12 @@
+name: "UNetModel"
+params: {
+  input_size: -1,
+  output_size: -1,
+  out_channels: 64,
+  kernel_size: 3,
+  hidden_sizes: [512, 256],
+  num_scalar_feats: 16,
+  num_vector_feats: 9,
+}
+collate_fn: "sequential_collate_fn"
+collate_params: {}
