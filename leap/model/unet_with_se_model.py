@@ -62,8 +62,9 @@ class REBlock(nn.Module):
 
 
 class UNetWithSEModel(BaseModel):
-    def __init__(self, input_size, output_size, out_channels=64, depth=2, se_type="mul",
-                 kernel_size=3, num_scalar_feats=16, num_vector_feats=9, ignore_mask=None):
+    def __init__(self, input_size, output_size, out_channels=64, kernel_size=3,
+                 depth=2, se_type="mul", upsample_mode="nearest",
+                 num_scalar_feats=16, num_vector_feats=9, ignore_mask=None):
         super().__init__(ignore_mask=ignore_mask)
         in_channels = num_scalar_feats + num_vector_feats
         self.padding = nn.ZeroPad1d(2)
@@ -81,7 +82,7 @@ class UNetWithSEModel(BaseModel):
         self.up_layer2 = ConvBlock(7*out_channels, 3*out_channels, kernel_size)
         self.up_layer3 = ConvBlock(5*out_channels, 2*out_channels, kernel_size)
         self.up_layer4 = ConvBlock(3*out_channels, out_channels, kernel_size)
-        self.upsample = nn.Upsample(scale_factor=2, mode="nearest")
+        self.upsample = nn.Upsample(scale_factor=2, mode=upsample_mode)
 
         self.out_conv = nn.Conv1d(out_channels, 14, kernel_size, padding="same")
 

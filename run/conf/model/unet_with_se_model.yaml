@@ -6,6 +6,7 @@ params: {
   kernel_size: 3,
   depth: 2,
   se_type: mul,
+  upsample_mode: nearest,
   num_scalar_feats: 16,
   num_vector_feats: 9,
 }
