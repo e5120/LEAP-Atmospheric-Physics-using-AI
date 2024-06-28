@@ -4,10 +4,11 @@ params: {
   output_size: -1,
   d_model: 128,
   nhead: 8,
-  dim_feedforward: 128,
-  num_layers: 12,
+  dim_feedforward: 512,
+  num_layers: 8,
   hidden_sizes: [512, 256],
   p: 0.1,
+  pos_type: "embedding",  # embedding|sinusoid
   num_scalar_feats: 16,
   num_vector_feats: 9,
 }
