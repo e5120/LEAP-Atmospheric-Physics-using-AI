@@ -75,10 +75,12 @@ class UNetWithSEModel(BaseModel):
         self.layer2 = self.make_down_layer(out_channels, 2*out_channels, kernel_size, 2, depth, se_type)
         self.layer3 = self.make_down_layer(2*out_channels+in_channels, 3*out_channels, kernel_size, 2, depth, se_type)
         self.layer4 = self.make_down_layer(3*out_channels+in_channels, 4*out_channels, kernel_size, 2, depth, se_type)
+        self.layer5 = self.make_down_layer(4*out_channels+in_channels, 5*out_channels, kernel_size, 2, depth, se_type)
 
-        self.up_layer1 = ConvBlock(7*out_channels, 3*out_channels, kernel_size)
-        self.up_layer2 = ConvBlock(5*out_channels, 2*out_channels, kernel_size)
-        self.up_layer3 = ConvBlock(3*out_channels, out_channels, kernel_size)
+        self.up_layer1 = ConvBlock(9*out_channels, 4*out_channels, kernel_size)
+        self.up_layer2 = ConvBlock(7*out_channels, 3*out_channels, kernel_size)
+        self.up_layer3 = ConvBlock(5*out_channels, 2*out_channels, kernel_size)
+        self.up_layer4 = ConvBlock(3*out_channels, out_channels, kernel_size)
         self.upsample = nn.Upsample(scale_factor=2, mode="nearest")
 
         self.out_conv = nn.Conv1d(out_channels, 14, kernel_size, padding="same")
@@ -93,35 +95,44 @@ class UNetWithSEModel(BaseModel):
         return nn.Sequential(*block)
 
     def forward(self, batch):
-        v = batch["x_vector"]  # (bs, num_features, seq_len)
-        s = batch["x_scalar"].unsqueeze(dim=-1).repeat(1, 1, v.size(-1))  # (bs, num_features, seq_len)
-        x = torch.cat([v, s], dim=1)
-        x = self.padding(x)
-        pool_x1 = self.avg_pool1(x)
-        pool_x2 = self.avg_pool2(x)
-        pool_x3 = self.avg_pool3(x)
+        v = batch["x_vector"]  # (bs, 9, 60)
+        s = batch["x_scalar"].unsqueeze(dim=-1).repeat(1, 1, v.size(-1))  # (bs, 16, 60)
+        x = torch.cat([v, s], dim=1)  # (bs, 25, 60)
+        x = self.padding(x)          # 60 -> 64
+        pool_x1 = self.avg_pool1(x)  # 64 -> 32
+        pool_x2 = self.avg_pool2(x)  # 64 -> 16
+        pool_x3 = self.avg_pool3(x)  # 64 -> 8
 
         # Encoder
-        out_0 = self.layer1(x)
-        out_1 = self.layer2(out_0)
+        out_0 = self.layer1(x)       # 64 -> 64
 
+        out_1 = self.layer2(out_0)   # 64 -> 32
         x = torch.cat([out_1, pool_x1], dim=1)
-        out_2 = self.layer3(x)
+
+        out_2 = self.layer3(x)       # 32 -> 16
         x = torch.cat([out_2, pool_x2], dim=1)
-        x = self.layer4(x)
+
+        out_3 = self.layer4(x)       # 16 -> 8
+        x = torch.cat([out_3, pool_x3], dim=1)
+
+        x = self.layer5(x)           # 8 -> 4
 
         # Decoder
-        up = self.upsample(x)
-        up = torch.cat([up, out_2], dim=1)
+        up = self.upsample(x)        # 4 -> 8
+        up = torch.cat([up, out_3], dim=1)
         up = self.up_layer1(up)
 
-        up = self.upsample(up)
-        up = torch.cat([up, out_1], dim=1)
+        up = self.upsample(up)       # 8 -> 16
+        up = torch.cat([up, out_2], dim=1)
         up = self.up_layer2(up)
 
-        up = self.upsample(up)
+        up = self.upsample(up)       # 16 -> 32
+        up = torch.cat([up, out_1], dim=1)
+        up = self.up_layer3(up)
+
+        up = self.upsample(up)       # 32 -> 64
         up = torch.cat([up, out_0], dim=1)
-        up  =self.up_layer3(up)
+        up  =self.up_layer4(up)
 
         out = self.out_conv(up[:, :, 2:-2])
         v_out = out[:, :6].reshape(out.size(0), -1)
