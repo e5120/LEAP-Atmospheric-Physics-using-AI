@@ -21,7 +21,7 @@ class ConvBlock(nn.Module):
     def forward(self, x):
         x = self.conv(x)
         x = self.bn(x)
-        out = F.relu(x)
+        out = F.elu(x)
         return out
 
 
@@ -36,7 +36,7 @@ class SEBlock(nn.Module):
     def forward(self, x):
         x_se = F.adaptive_avg_pool1d(x, 1)
         x_se = self.conv1(x_se)
-        x_se = F.relu(x_se)
+        x_se = F.elu(x_se)
         x_se = self.conv2(x_se)
         x_se = F.sigmoid(x_se)
         if self.se_type == "sum":
