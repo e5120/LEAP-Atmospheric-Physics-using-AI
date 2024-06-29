@@ -1,6 +1,321 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch import Tensor
+
+
+def get_act_fn(activation):
+    if activation == 'swish':
+        return nn.SiLU()
+    elif activation == 'silu':
+        return nn.SiLU()
+    elif activation == 'gelu':
+        return nn.GELU()
+    elif activation == 'relu':
+        return nn.ReLU()
+    elif activation == 'mish':
+        return nn.Mish()
+    elif activation == 'prelu':
+        return nn.PReLU()
+    elif activation == 'elu':
+        return nn.ELU()
+    else:
+        raise NotImplmentedError
+
+
+class GLU(nn.Module):
+    def __init__(self, dim: int, activation: str = 'sigmoid') -> None:
+        super(GLU, self).__init__()
+        self.dim = dim
+        self.activation = get_act_fn(activation)
+
+    def forward(self, inputs: Tensor) -> Tensor:
+        outputs, gate = inputs.chunk(2, dim=self.dim)
+        return outputs * self.activation(gate)
+
+
+class Mlp(nn.Module):
+    def __init__(
+        self,
+        dim: int = 512,
+        expand: int = 4,
+        dropout: float = 0.1,
+        bias : bool = True,
+        activation: str = 'gelu'
+    ) -> None:
+        super(Mlp, self).__init__()
+
+        self.ffn1 = nn.Linear(dim, dim * expand, bias=bias)
+        self.act = get_act_fn(activation)
+        self.do1 = nn.Dropout(p=dropout)
+        self.ffn2 = nn.Linear(dim * expand, dim, bias=bias)
+        # self.do2 = nn.Dropout(p=dropout)
+
+    def forward(self, x):
+        x = self.ffn1(x)
+        x = self.act(x)
+        x = self.do1(x)
+        x = self.ffn2(x)
+        # x = self.do2(x)
+        return x
+
+
+class GLUMlp(nn.Module):
+    def __init__(
+        self,
+        dim: int = 512,
+        expand: int = 4,
+        dropout: float = 0.1,
+        bias : bool = True,
+        activation: str = 'gelu'
+    ) -> None:
+        super(GLUMlp, self).__init__()
+
+        self.ffn1 = nn.Linear(dim, dim * expand, bias=bias)
+        self.glu = GLU(dim=-1, activation=activation)
+        self.do1 = nn.Dropout(p=dropout)
+        self.ffn2 = nn.Linear(dim * expand // 2, dim, bias=bias)
+        # self.do2 = nn.Dropout(p=dropout)
+
+    def forward(self, x):
+        x = self.ffn1(x)
+        x = self.glu(x)
+        x = self.do1(x)
+        x = self.ffn2(x)
+        # x = self.do2(x)
+        return x
+
+
+class Conv1dSame(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, groups=1, dilation=1, bias=True):
+        super().__init__()
+        assert dilation==1
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.conv = nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding=0, dilation=1, groups=groups, bias=bias)
+
+    def calc_same_pad(self, i, k, s):
+        # return max((math.ceil(i / s) - 1) * s + (k - 1) * d + 1 - i, 0)
+        if i%s == 0:
+            pad = max(k - s, 0)
+        else:
+            pad = max(k - (i % s), 0)
+        return pad
+
+    def forward(self, inputs):
+        x = inputs
+        i = x.size()[-1]
+        pad = self.calc_same_pad(i=i, k=self.kernel_size, s=self.stride)
+
+        x = F.pad(x, [pad//2, pad - pad// 2])
+        return self.conv(x)
+
+
+def drop_path(x, drop_prob: float = 0., training: bool = False, scale_by_keep: bool = True):
+    if drop_prob == 0. or not training:
+        return x
+    keep_prob = 1 - drop_prob
+    shape = (x.shape[0],) + (1,) * (x.ndim - 1)  # work with diff dim tensors, not just 2D ConvNets
+    random_tensor = x.new_empty(shape).bernoulli_(keep_prob)
+    if keep_prob > 0.0 and scale_by_keep:
+        random_tensor.div_(keep_prob)
+    return x * random_tensor
+
+
+class DropPath(nn.Module):
+    def __init__(self, drop_prob=None, scale_by_keep=True):
+        super(DropPath, self).__init__()
+        self.drop_prob = drop_prob
+        self.scale_by_keep = scale_by_keep
+
+    def forward(self, x, mask=None):
+        return drop_path(x, self.drop_prob, self.training, self.scale_by_keep)
+
+
+class ScaleBiasLayer(nn.Module):
+    def __init__(self, d_model: int, adaptive_scale: bool):
+        super().__init__()
+        self.adaptive_scale = adaptive_scale
+        if adaptive_scale:
+            self.scale = nn.Parameter(torch.ones(d_model))
+            self.bias = nn.Parameter(torch.zeros(d_model))
+        else:
+            self.register_buffer('scale', torch.ones(d_model), persistent=True)
+            self.register_buffer('bias', torch.zeros(d_model), persistent=True)
+
+    def forward(self, x):
+        scale = self.scale.view(1, 1, -1)
+        bias = self.bias.view(1, 1, -1)
+        return x * scale + bias
+
+
+class Conv1DBlock(nn.Module):
+    def __init__(self, dim, kernel_size=3, groups=4, dilation=1, stride=1,
+                 conv_dropout=0.0, mlp_dropout=0.0, drop_path=0.0,
+                 expand=4, activation='swish', prenorm=True):
+        super().__init__()
+        self.prenorm = prenorm
+        self.stride = stride
+
+        self.norm1 = nn.LayerNorm(dim)
+        self.norm2 = nn.LayerNorm(dim)
+        self.glu = GLU(dim=-1, activation=activation)
+        self.expand_conv = nn.Linear(dim, 2*dim)
+        self.conv = Conv1dSame(dim, dim, kernel_size=kernel_size, groups=groups)
+        # self.conv_norm = nn.BatchNorm1d(dim, momentum=0.05)
+        self.conv_norm = nn.BatchNorm1d(dim)
+        self.conv_act = get_act_fn(activation)
+        self.conv_proj = nn.Linear(dim, dim)
+        self.mlp = GLUMlp(dim, expand, mlp_dropout, activation=activation)
+        self.conv_dropout = nn.Dropout(conv_dropout)
+        # self.mlp_dropout = nn.Dropout(mlp_dropout)
+        self.drop1 = DropPath(drop_path)
+        self.drop2 = DropPath(drop_path)
+        self.conv_scale = ScaleBiasLayer(dim, adaptive_scale=True)
+        self.mlp_scale = ScaleBiasLayer(dim, adaptive_scale=True)
+
+    def forward(self, inputs):
+        x = inputs
+        if self.prenorm:
+            x = self.norm1(x)
+        x = self.expand_conv(x)
+        x = self.glu(x)
+        x = x.permute(0,2,1)
+        x = self.conv(x)
+        x = self.conv_norm(x)
+        x = self.conv_act(x)
+        x = self.conv_dropout(x)
+        x = x.permute(0,2,1)
+        x = self.conv_proj(x)
+        x = self.drop1(x)
+        x = self.conv_scale(x)
+        if self.stride == 1:
+            x = x + inputs
+        if not self.prenorm:
+            x = self.norm1(x)
+        conv_out = x
+        if self.prenorm:
+            x = self.norm2(x)
+        x = self.mlp(x)
+        # x = self.mlp_dropout(x)
+        x = self.drop2(x)
+        x = self.mlp_scale(x)
+        if self.stride == 1:
+            x = x + conv_out
+        if not self.prenorm:
+            x = self.norm2(x)
+        return x
+
+
+class AltAttention(nn.Module):
+    def __init__(self, dim=256, num_heads=4, dropout=0):
+        super().__init__()
+        self.dim = dim
+        self.scale = self.dim ** -0.5
+        self.num_heads = num_heads
+        self.qkv = nn.Linear(dim, 3 * dim, bias=True)
+        self.attn_drop = nn.Dropout(dropout)
+        self.proj = nn.Linear(dim, dim, bias=True)
+        # self.proj_drop = nn.Dropout(dropout)
+
+    def forward(self, inputs):
+        qkv = self.qkv(inputs)
+        qkv = qkv.view(-1, inputs.shape[1], self.num_heads, self.dim * 3 // self.num_heads).permute(0, 2, 1, 3)
+        q, k, v = qkv.split([self.dim // self.num_heads] * 3, dim=-1)
+
+        attn = torch.matmul(q, k.permute(0, 1, 3, 2)) * self.scale
+        attn = F.softmax(attn, dim=-1)
+        attn = self.attn_drop(attn)
+
+        x = attn @ v
+        x = x.permute(0, 2, 1, 3).reshape(-1, inputs.shape[1], self.dim)
+        x = self.proj(x)
+        # x = self.proj_drop(x)
+        return x
+
+
+class AltBlock(nn.Module):
+    def __init__(self, dim=256, num_heads=4, expand=4, attn_dropout=0.2, mlp_dropout=0.2, drop_path=0., activation='gelu', prenorm=True):
+        super().__init__()
+        self.norm1 = nn.LayerNorm(dim)
+        self.self_attn = AltAttention(dim=dim, num_heads=num_heads, dropout=attn_dropout)
+        self.drop1 = DropPath(drop_path)
+
+        self.norm2 = nn.LayerNorm(dim)
+        self.mlp = GLUMlp(dim, expand, dropout=mlp_dropout, activation=activation)
+        self.drop2 = DropPath(drop_path)
+
+        self.prenorm = prenorm
+        self.attn_scale = ScaleBiasLayer(dim, adaptive_scale=True)
+        self.mlp_scale = ScaleBiasLayer(dim, adaptive_scale=True)
+
+    def forward(self, inputs):
+        x = inputs
+        if self.prenorm:
+            x = self.norm1(x)
+        x = self.self_attn(x)
+        x = self.drop1(x)
+        x = self.attn_scale(x)
+        x = x + inputs
+        if not self.prenorm:
+            x = self.norm1(x)
+        attn_out = x
+
+        if self.prenorm:
+            x = self.norm2(x)
+        x = self.mlp(x)
+        x = self.drop2(x)
+        x = self.mlp_scale(x)
+        x = x + attn_out
+        if not self.prenorm:
+            x = self.norm2(x)
+        return x
+
+
+class SqueezeformerBlock(nn.Module):
+    def __init__(self, dim=256, kernel_size=3, groups=4, num_heads=4,
+                 conv_expand=4, attn_expand=4, num_conv_block=1, num_attn_block=1,
+                 conv_dropout=0.1, attn_dropout=0.1, mlp_dropout=0.1, drop_path=0.1,
+                 activation='swish', prenorm=True):
+        super().__init__()
+        self.conv_blocks = nn.ModuleList([
+            Conv1DBlock(
+                dim=dim,
+                kernel_size=kernel_size,
+                groups=groups,
+                stride=1,
+                dilation=1,
+                conv_dropout=conv_dropout,
+                mlp_dropout=mlp_dropout,
+                drop_path=drop_path,
+                expand=conv_expand,
+                activation=activation,
+                prenorm=prenorm,
+            )
+            for _ in range(num_conv_block)
+        ])
+        self.attn_blocks = nn.ModuleList([
+            AltBlock(
+                dim=dim,
+                num_heads=num_heads,
+                expand=attn_expand,
+                attn_dropout=attn_dropout,
+                mlp_dropout=mlp_dropout,
+                drop_path=drop_path,
+                activation=activation,
+                prenorm=prenorm,
+            )
+            for _ in range(num_attn_block)
+        ])
+
+    def forward(self, inputs):
+        x = inputs
+        # 下の順番どっちがいいのかわからない
+        for block in self.attn_blocks:
+            x = block(x)
+        for block in self.conv_blocks:
+            x = block(x)
+        return x
 
 
 class MLPBlock(nn.Module):
@@ -24,29 +339,24 @@ class ResnetBlock(nn.Module):
     def __init__(self, num_channels, kernel_size, stride, padding, dilation, p=0.0):
         super().__init__()
         self.block = nn.Sequential(
+            nn.Conv1d(num_channels, num_channels, 1, padding="same"),
+            nn.SiLU(inplace=True),
             nn.BatchNorm1d(num_channels),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=p, inplace=True),
             nn.Conv1d(
                 num_channels, num_channels, kernel_size,
                 stride=stride,
                 dilation=dilation,
                 padding=padding,
-                bias=False,
+                # bias=False,
             ),
+            nn.SiLU(inplace=True),
             nn.BatchNorm1d(num_channels),
-            nn.ReLU(inplace=True),
-            nn.Conv1d(
-                num_channels, num_channels, kernel_size,
-                stride=stride,
-                dilation=dilation,
-                padding=padding,
-                bias=False,
-            ),
-            nn.Dropout(p=p, inplace=True),
+            nn.Conv1d(num_channels, num_channels, 1, padding="same"),
+            nn.SiLU(inplace=True),
+            nn.BatchNorm1d(num_channels),
         )
 
     def forward(self, x):
         out = self.block(x)
-        out = x + out
+        out = x + out + F.avg_pool1d(out, kernel_size=out.size(2))
         return out

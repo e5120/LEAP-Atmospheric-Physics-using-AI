@@ -8,3 +8,4 @@ from leap.model.attn_model import AttnModel
 from leap.model.sep_ffn_model import SeparateFFNModel
 from leap.model.unet_model import UNetModel
 from leap.model.unet_with_se_model import UNetWithSEModel
+from leap.model.squeeze_former_model import SqueezeFormerModel
