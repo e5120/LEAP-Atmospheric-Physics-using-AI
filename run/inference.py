@@ -3,6 +3,7 @@ import pickle
 from pathlib import Path
 
 import hydra
+import numpy as np
 import torch
 import polars as pl
 import lightning as L
@@ -42,6 +43,17 @@ def post_process(df, cfg):
         df = df.with_columns(
             pl.lit(-input_df[f"state_q0002_{i}"] / 1200).alias(f"ptend_q0002_{i}")
         )
+    if False:  # あってもなくてもほぼ値変わらない（より値の大きいところの誤差が大きすぎて影響が極小）
+        idx = np.arange(12, 16)
+        columns = [f"state_q0003_{i}" for i in idx]
+        input_df = pl.read_csv(Path(cfg.dir.data_dir, "test.csv"), columns=columns)
+        for i in idx:
+            df = df.with_columns(
+                pl.when(input_df[f"state_q0003_{i}"] < 1e-13)
+                .then(-input_df[f"state_q0003_{i}"] / 1200)
+                .otherwise(pl.col(f"ptend_q0003_{i}"))
+                .alias(f"ptend_q0003_{i}")
+            )
     # 重みをかける
     weight_df = pl.read_csv(Path(cfg.dir.data_dir, "sample_submission.csv"), n_rows=1)[:, 1:]
     columns = weight_df.columns
