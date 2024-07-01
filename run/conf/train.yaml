@@ -22,13 +22,13 @@ output_dir: ~
 exp_name: dummy
 stage: train
 num_train_files: ~
-batch_size: 4096
+batch_size: 512
 seed: 42
 benchmark: False
 logger: False
 
 trainer:
-  max_epochs: 20
+  max_epochs: 5
   min_epochs: 200
   enable_progress_bar: True
   accelerator: auto
@@ -38,6 +38,7 @@ trainer:
   gradient_clip_val: ~
   accumulate_grad_batches: 1
   devices: [1]
+  val_check_interval: 0.25
 
 early_stopping:
   monitor: "val_r2"
