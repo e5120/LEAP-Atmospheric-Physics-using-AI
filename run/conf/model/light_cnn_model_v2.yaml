@@ -2,9 +2,10 @@ name: "LightCNNModelV2"
 params: {
   input_size: -1,
   output_size: -1,
-  out_channels: 128,
+  out_channels: 128,   # 256
   kernel_size: 3,
-  num_layers: 2,
+  num_layers: 2,       # 7
+  activation: swish,   # relu, eluもあり
   num_scalar_feats: 16,
   num_vector_feats: 9,
 }

@@ -3,20 +3,21 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from leap.model import BaseModel
+from leap.model.modules import get_act_fn
 
 
 class Conv1dBlock(nn.Module):
-    def __init__(self, num_channels, kernel_size):
+    def __init__(self, num_channels, kernel_size, activation="relu"):
         super().__init__()
         self.layers = nn.Sequential(
             nn.Conv1d(num_channels, 4*num_channels, kernel_size, padding="same"),
-            nn.ReLU(inplace=True),
+            get_act_fn(activation),
             nn.BatchNorm1d(4*num_channels),
             nn.Conv1d(4*num_channels, 2*num_channels, kernel_size, padding="same"),
-            nn.ReLU(inplace=True),
+            get_act_fn(activation),
             nn.BatchNorm1d(2*num_channels),
             nn.Conv1d(2*num_channels, num_channels, kernel_size, padding="same"),
-            nn.ReLU(inplace=True),
+            get_act_fn(activation),
             nn.BatchNorm1d(num_channels),
         )
         self.bn = nn.BatchNorm1d(num_channels)
@@ -31,12 +32,12 @@ class Conv1dBlock(nn.Module):
 
 class LightCNNModelV2(BaseModel):
     def __init__(self, input_size, output_size, out_channels=64, kernel_size=3, num_layers=3,
-                 num_scalar_feats=16, num_vector_feats=9, ignore_mask=None):
+                 activation="relu", num_scalar_feats=16, num_vector_feats=9, ignore_mask=None):
         super().__init__(ignore_mask=ignore_mask)
         num_feats = num_scalar_feats + num_vector_feats
         self.conv = nn.Conv1d(num_feats, out_channels, 1, padding="same")
         self.conv_blocks = nn.ModuleList([
-            Conv1dBlock(out_channels, kernel_size)
+            Conv1dBlock(out_channels, kernel_size, activation=activation)
             for _ in range(num_layers)
         ])
         self.conv2 = nn.Conv1d(out_channels, 14, 1, padding="same")
