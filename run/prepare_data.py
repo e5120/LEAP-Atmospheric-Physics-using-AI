@@ -2,7 +2,6 @@ import yaml
 from pathlib import Path
 
 import hydra
-import numpy as np
 import polars as pl
 import pandas as pd
 import pyarrow as pa
@@ -48,23 +47,12 @@ def split_dataset(cfg):
 
 def feature_engineering(df, is_test):
     if is_test:
-        df = df.with_columns(
-            ((2 * np.pi * pl.lit(1)).sin()).alias("sin_time"),
-            ((2 * np.pi * pl.lit(1)).cos()).alias("cos_time"),
-        )
+        df = df.with_columns(pl.lit(1).alias("time"))
     else:
-        df = (
-            df
-            .with_columns(
-                (pl.col("sample_id").str.extract(r"(\d+)").str.to_integer() // 1261440).alias("time")
-            )
-            .with_columns(
-                (2 * np.pi * pl.col("time") / 8).sin().alias("sin_time"),
-                (2 * np.pi * pl.col("time") / 8).cos().alias("cos_time"),
-            )
-            .drop("time")
+        df = df.with_columns(
+            (pl.col("sample_id").str.extract(r"(\d+)").str.to_integer() // 1261440 / 8).alias("time")
         )
-    add_feats = ["sin_time", "cos_time"]
+    add_feats = ["time"]
     return df, add_feats
 
 
