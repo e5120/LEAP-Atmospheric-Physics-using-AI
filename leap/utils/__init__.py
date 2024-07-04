@@ -14,6 +14,9 @@ IN_SCALAR_COLUMNS = [
 IN_VECTOR_COLUMNS = [
     "state_t", "state_q0001", "state_q0002", "state_q0003", "state_u", "state_v", "pbuf_ozone", "pbuf_CH4", "pbuf_N2O",
 ]
+IN_AUX_COLUMNS = [
+    "sin_time", "cos_time",
+]
 IN_COLUMNS = IN_SCALAR_COLUMNS + IN_VECTOR_COLUMNS
 OUT_SCALAR_COLUMNS = [
     "cam_out_NETSW", "cam_out_FLWDS", "cam_out_PRECSC", "cam_out_PRECC",

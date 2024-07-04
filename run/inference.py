@@ -1,4 +1,5 @@
 # python run/inference.py --experimental-rerun=/path/to/config.pickle
+import yaml
 import pickle
 from pathlib import Path
 
@@ -22,7 +23,10 @@ from leap.utils import (
 
 
 def post_process(df, cfg):
-    df = normalize(df, [], df.columns[1:], "standard", cfg.dir.data_dir, reverse=True)
+    # 標準化していたものを戻す
+    with open(Path(cfg.dir.data_dir, cfg.dataset_name, "scaler_methods.yaml")) as f:
+        scaler_method = yaml.safe_load(f)
+    df = normalize(df, scaler_method, cfg.dir.data_dir, reverse=True)
     # うまく学習できていないカラムを平均値で置き換え
     with open(Path(cfg.output_dir, "broken_columns.pkl"), "rb") as f:
         broken_label_columns = pickle.load(f)
@@ -74,7 +78,7 @@ def main(cfg):
     datamodule = LeapDataModule(cfg)
     cfg.model.params.input_size = len(IN_SCALAR_COLUMNS) + 60 * len(IN_VECTOR_COLUMNS)
     cfg.model.params.output_size = len(OUT_SCALAR_COLUMNS) + 60 * len(OUT_VECTOR_COLUMNS)
-    test_df = pl.read_parquet(Path(cfg.dir.data_dir, "processed_test.parquet"), columns=["sample_id"])
+    test_df = pl.read_parquet(Path(cfg.dir.data_dir, cfg.dataset_name, "processed_test.parquet"), columns=["sample_id"])
     label_columns = get_label_columns(OUT_COLUMNS)
     trainer = L.Trainer(**cfg.trainer)
     if cfg.dir.name == "kaggle":

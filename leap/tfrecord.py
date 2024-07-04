@@ -8,7 +8,13 @@ import tensorflow as tf
 import tensorflow_datasets as tfds
 from tqdm.auto import tqdm
 
-from leap.utils import IN_SCALAR_COLUMNS, IN_VECTOR_COLUMNS, OUT_SCALAR_COLUMNS, OUT_VECTOR_COLUMNS
+from leap.utils import (
+    IN_SCALAR_COLUMNS,
+    IN_VECTOR_COLUMNS,
+    IN_AUX_COLUMNS,
+    OUT_SCALAR_COLUMNS,
+    OUT_VECTOR_COLUMNS,
+)
 
 
 # https://www.kaggle.com/code/konstantinboyko/convert-original-csv-file-to-tfrecord/notebook
@@ -18,7 +24,7 @@ def generate_tf_example(row, stage):
     feature = {"sample_id": string_feature(row[0, "sample_id"])}
     feature.update({
         col: float_feature(row[0, col])
-        for col in IN_SCALAR_COLUMNS
+        for col in IN_SCALAR_COLUMNS + IN_AUX_COLUMNS
     })
     feature.update({
         col: float_list_feature(row[0, col].to_numpy())
@@ -78,7 +84,7 @@ def read_tfrecord(example, stage):
     tfrec_format = {"sample_id": tf.io.FixedLenFeature([], tf.string)}
     tfrec_format.update({
         col: tf.io.FixedLenFeature([], tf.float32)
-        for col in IN_SCALAR_COLUMNS
+        for col in IN_SCALAR_COLUMNS + IN_AUX_COLUMNS
     })
     tfrec_format.update({
         col: tf.io.FixedLenSequenceFeature([], tf.float32, allow_missing=True)

@@ -2,6 +2,7 @@ import yaml
 from pathlib import Path
 
 import hydra
+import numpy as np
 import polars as pl
 import pandas as pd
 import pyarrow as pa
@@ -45,35 +46,66 @@ def split_dataset(cfg):
     test_df.write_parquet(Path(output_dir, "raw_test.parquet"))
 
 
+def feature_engineering(df, is_test):
+    if is_test:
+        df = df.with_columns(
+            ((2 * np.pi * pl.lit(1)).sin()).alias("sin_time"),
+            ((2 * np.pi * pl.lit(1)).cos()).alias("cos_time"),
+        )
+    else:
+        df = (
+            df
+            .with_columns(
+                (pl.col("sample_id").str.extract(r"(\d+)").str.to_integer() // 1261440).alias("time")
+            )
+            .with_columns(
+                (2 * np.pi * pl.col("time") / 8).sin().alias("sin_time"),
+                (2 * np.pi * pl.col("time") / 8).cos().alias("cos_time"),
+            )
+            .drop("time")
+        )
+    add_feats = ["sin_time", "cos_time"]
+    return df, add_feats
+
+
 def generate_dataset(cfg):
     data_dir = Path(cfg.data_dir)
-    if not cfg.overwrite and list(data_dir.glob(f"{cfg.prefix}train*")):
+    output_dir = Path(cfg.output_dir, cfg.dataset_name)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    if not cfg.overwrite and list(output_dir.glob(f"{cfg.prefix}*.parquet")):
         print("already exist")
         return
     print("generating dataset")
-    label_cols = pl.read_csv(Path(data_dir, "sample_submission.csv"), n_rows=1).columns[1:]
-    feat_cols = pl.read_csv(Path(data_dir, "train.csv"), n_rows=1).select(pl.exclude(label_cols)).columns[1:]
+    scaler_method = {}
+    for k, v in cfg.scaler.items():
+        scaler_method[k] = list(v)
+    with open(Path(output_dir, "scaler_methods.yaml"), "w") as f:
+        yaml.safe_dump(scaler_method, f)
     # train data
     for filename in tqdm(sorted(list(data_dir.glob("raw_train*")))):
         df = pl.read_parquet(filename)
-        df = normalize(df, feat_cols, label_cols, cfg.scaler, data_dir)
+        df, add_feats = feature_engineering(df, False)
+        df = normalize(df, scaler_method, data_dir)
         df = df.with_columns(pl.col(pl.Float64).cast(pl.Float32))
         for col in IN_VECTOR_COLUMNS + OUT_VECTOR_COLUMNS:
             df = df.with_columns(pl.concat_list(f"^{col}_\d+$").alias(col))
-        df = df.select(["sample_id"] + IN_SCALAR_COLUMNS + IN_VECTOR_COLUMNS + OUT_SCALAR_COLUMNS + OUT_VECTOR_COLUMNS)
-        df.write_parquet(str(filename).replace("raw_", cfg.prefix))
+        df = df.select(["sample_id"] + IN_SCALAR_COLUMNS + IN_VECTOR_COLUMNS + OUT_SCALAR_COLUMNS + OUT_VECTOR_COLUMNS + add_feats)
+        save_filename = filename.stem.replace("raw_", cfg.prefix) + ".parquet"
+        df.write_parquet(Path(output_dir, save_filename))
     # test data
     filename = Path(data_dir, "raw_test.parquet")
     test_df = pl.read_parquet(filename)
-    test_df = normalize(test_df, feat_cols, [], cfg.scaler, data_dir)
+    test_df, add_feats = feature_engineering(test_df, True)
+    test_df = normalize(test_df, scaler_method, data_dir)
     for col in IN_VECTOR_COLUMNS:
         test_df = test_df.with_columns(pl.concat_list(f"^{col}_\d+$").alias(col))
-    test_df = test_df.select(["sample_id"] + IN_SCALAR_COLUMNS + IN_VECTOR_COLUMNS)
-    test_df.write_parquet(str(filename).replace("raw_", cfg.prefix))
+    test_df = test_df.select(["sample_id"] + IN_SCALAR_COLUMNS + IN_VECTOR_COLUMNS + add_feats)
+    save_filename = filename.stem.replace("raw_", cfg.prefix) + ".parquet"
+    test_df.write_parquet(Path(output_dir, save_filename))
 
 
 def generate_tfrecord(cfg):
-    data_dir = Path(cfg.data_dir)
+    data_dir = Path(cfg.output_dir, cfg.dataset_name)
     if not cfg.overwrite and list(data_dir.glob(f"*.tfrecord")):
         print("already exist")
         return

@@ -4,29 +4,21 @@ import lightning as L
 
 import leap.collator
 from leap.tfrecord import TFRecordDataLoader
-from leap.utils import (
-    IN_COLUMNS,
-    IN_SCALAR_COLUMNS,
-    IN_VECTOR_COLUMNS,
-    OUT_COLUMNS,
-    OUT_SCALAR_COLUMNS,
-    OUT_VECTOR_COLUMNS,
-)
 
 
 class LeapDataModule(L.LightningDataModule):
     def __init__(self, cfg):
         super().__init__()
         assert cfg.stage in ["train", "test"]
-        self.cfg = cfg
         self.stage = cfg.stage
         self.batch_size = cfg.batch_size
-        self.data_dir = Path(cfg.dir.data_dir)
+        self.data_dir = Path(cfg.dir.data_dir, cfg.dataset_name)
+        self.num_train_files = cfg.num_train_files
         self.collate_fn = getattr(leap.collator, cfg.model.collate_fn)
         self.collate_params = cfg.model.collate_params
 
     def train_dataloader(self):
-        return TFRecordDataLoader(self.data_dir, batch_size=self.batch_size, stage="train", num_files=self.cfg.num_train_files)
+        return TFRecordDataLoader(self.data_dir, batch_size=self.batch_size, stage="train", num_files=self.num_train_files)
 
     def val_dataloader(self):
         return TFRecordDataLoader(self.data_dir, batch_size=self.batch_size, stage="val")

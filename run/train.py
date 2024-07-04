@@ -25,10 +25,10 @@ def main(cfg):
     datamodule = LeapDataModule(cfg)
     cfg.model.params.input_size = len(IN_SCALAR_COLUMNS) + 60 * len(IN_VECTOR_COLUMNS)
     cfg.model.params.output_size = len(OUT_SCALAR_COLUMNS) + 60 * len(OUT_VECTOR_COLUMNS)
-    with open(Path(cfg.dir.data_dir, "data_size.yaml"), "r") as f:
+    with open(Path(cfg.dir.data_dir, cfg.dataset_name, "data_size.yaml"), "r") as f:
         num_train_data = yaml.safe_load(f)["train"]
         if cfg.num_train_files:
-            files = list(Path(cfg.dir.data_dir).glob("train*.tfrecord"))
+            files = list(Path(cfg.dir.data_dir, cfg.dataset_name).glob("train*.tfrecord"))
             num_train_data = int(num_train_data * cfg.num_train_files / len(files))
     max_steps = get_num_training_steps(num_train_data, cfg)
     if "num_training_steps" in cfg.scheduler.params:

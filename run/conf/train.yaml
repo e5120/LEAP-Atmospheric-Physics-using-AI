@@ -15,10 +15,11 @@ defaults:
   - _self_
   - dir: local
   - model: ffn_model
-  - optimizer: adam
+  - optimizer: adamw
   - scheduler: cosine_with_restart_warmup
 
 output_dir: ~
+dataset_name: ~
 exp_name: dummy
 stage: train
 num_train_files: ~
