@@ -4,6 +4,7 @@ import torch.nn.functional as F
 
 from leap.model import BaseModel
 from leap.model.modules import get_act_fn
+from leap.model.unet_with_se_model import SEBlock
 
 
 class Conv1dBlock(nn.Module):
@@ -20,10 +21,15 @@ class Conv1dBlock(nn.Module):
             get_act_fn(activation),
             nn.BatchNorm1d(num_channels),
         )
+        self.se_layers = nn.Sequential(*[
+            SEBlock(num_channels, num_channels, se_type="mul")
+            for _ in range(3)
+        ])
         self.bn = nn.BatchNorm1d(num_channels)
 
     def forward(self, x):
         out = self.layers(x)
+        out = self.se_layers(out)
         # out = x + out + out.mean(dim=1, keepdim=True) + out.mean(dim=2, keepdim=True)
         out = out + x + F.avg_pool1d(out, kernel_size=x.size(2))
         out = self.bn(out)
