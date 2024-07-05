@@ -70,7 +70,7 @@ class LeapModelModule(L.LightningModule):
         val_r2[broken_mask] = 0.0
         val_logs = {
             "val_r2": val_r2.mean(),
-            "r2_raw": raw_val_r2.mean(),
+            # "r2_raw": raw_val_r2.mean(),
             # "r2_std": val_r2.std(),
             "r2_broken": broken_mask.sum(),
         }

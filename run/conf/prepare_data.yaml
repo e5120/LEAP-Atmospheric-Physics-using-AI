@@ -12,17 +12,18 @@ dataset_name: dataset_v1
 prefix: processed_
 scaler:
   # (x - mean) / std
-  standard: []
+  standard: [
+    "state_ps", "pbuf_TAUX", "pbuf_TAUY", "pbuf_COSZRS",
+    "cam_in_ALDIF", "cam_in_ALDIR", "cam_in_ASDIF", "cam_in_ASDIR", "cam_in_LWUP", "cam_in_SNOWHLAND",
+    # "cam_in_ICEFRAC", "cam_in_LANDFRAC", "cam_in_OCNFRAC",
+    "state_t", "state_q0001", "state_u", "state_v", "pbuf_ozone", "pbuf_CH4", "pbuf_N2O",
+  ]
   # (x - q2) / (q3 - q1)
   robust: []
   # (x -min) / (max - min)
   minmax: []
   # (x - mean) / (max - min)
   minmaxmean: [
-    "state_ps", "pbuf_TAUX", "pbuf_TAUY", "pbuf_COSZRS",
-    "cam_in_ALDIF", "cam_in_ALDIR", "cam_in_ASDIF", "cam_in_ASDIR", "cam_in_LWUP", "cam_in_SNOWHLAND",
-    # "cam_in_ICEFRAC", "cam_in_LANDFRAC", "cam_in_OCNFRAC",
-    "state_t", "state_q0001", "state_u", "state_v", "pbuf_ozone", "pbuf_CH4", "pbuf_N2O",
   ]
   # x / (max - min)
   minmaxzero: [
@@ -34,6 +35,9 @@ scaler:
   ]
   # x / std
   std: [
+  ]
+  # (x - mean) / std_y
+  standard_y: [
     "cam_out_NETSW", "cam_out_FLWDS", "cam_out_PRECSC", "cam_out_PRECC",
     "cam_out_SOLS", "cam_out_SOLL", "cam_out_SOLSD", "cam_out_SOLLD",
     "ptend_t", "ptend_q0001", "ptend_q0002", "ptend_q0003",

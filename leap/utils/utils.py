@@ -68,7 +68,7 @@ def normalize(df, methods, path, reverse=False, eps=1e-52):
             continue
         stats = stats_df.select(tgt_columns).to_numpy()
         mat = df.select(tgt_columns).to_numpy()
-        mean, std, q2, q3, q4, mi, ma, lam = stats
+        mean, std, q2, q3, q4, mi, ma, lam, std_y = stats
         if method_name == "standard":
             mat = standard_scale(mat, mean, std, reverse=reverse, eps=eps)
         elif method_name == "robust":
@@ -83,6 +83,8 @@ def normalize(df, methods, path, reverse=False, eps=1e-52):
             mat = exp_scale(mat, lam, reverse=reverse, eps=eps)
         elif method_name == "std":
             mat = standard_scale(mat, 0, std, reverse=reverse, eps=eps)
+        elif method_name == "standard_y":
+            mat = standard_scale(mat, mean, std_y, reverse=reverse, eps=eps)
         else:
             raise NotImplementedError
         df = df.with_columns([
