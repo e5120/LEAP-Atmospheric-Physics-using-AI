@@ -1,12 +1,12 @@
 import numpy as np
 import torch
 
-from leap.utils import IN_VECTOR_COLUMNS, IN_COLUMNS, OUT_COLUMNS
+from leap.utils import IN_VECTOR_COLUMNS, IN_COLUMNS, IN_AUX_COLUMNS, OUT_COLUMNS
 
 
 def get_auxiliary_data(batch):
     aux = []
-    for col in ["sin_time", "cos_time"]:
+    for col in IN_AUX_COLUMNS:
         aux.append(
             torch.from_numpy(batch[col].reshape(batch[col].shape[0], -1))
         )
