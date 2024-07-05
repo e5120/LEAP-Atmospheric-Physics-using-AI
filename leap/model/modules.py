@@ -1,3 +1,5 @@
+import math
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -20,7 +22,7 @@ def get_act_fn(activation):
     elif activation == 'elu':
         return nn.ELU()
     else:
-        raise NotImplmentedError
+        raise NotImplementedError
 
 
 class GLU(nn.Module):
@@ -360,3 +362,28 @@ class ResnetBlock(nn.Module):
         out = self.block(x)
         out = x + out + F.avg_pool1d(out, kernel_size=out.size(2))
         return out
+
+
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model, max_len=60, dropout=0.1, pos_type="embedding"):
+        super().__init__()
+        assert pos_type in ["embedding", "sinusoid"]
+        self.pos_type = pos_type
+        if self.pos_type == "embedding":
+            self.positional_embedding = nn.Embedding(max_len, d_model)
+        else:
+            position = torch.arange(max_len).unsqueeze(1)
+            div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
+            pe = torch.zeros(1, max_len, d_model)
+            pe[0, :, 0::2] = torch.sin(position * div_term)
+            pe[0, :, 1::2] = torch.cos(position * div_term)
+            self.register_buffer('pe', pe)
+        self.dropout = nn.Dropout(p=dropout)
+
+    def forward(self, x):
+        if self.pos_type == "embedding":
+            pos_emb = self.positional_embedding(torch.arange(x.size(1)).to(x.device))
+            x = x + pos_emb.unsqueeze(dim=0)
+        else:
+            x = x + self.pe[:, :x.size(1)]
+        return self.dropout(x)
