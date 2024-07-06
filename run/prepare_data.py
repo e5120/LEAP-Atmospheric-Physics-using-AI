@@ -14,6 +14,7 @@ from leap.utils import (
     IN_VECTOR_COLUMNS,
     OUT_SCALAR_COLUMNS,
     OUT_VECTOR_COLUMNS,
+    NUM_GRID,
     normalize,
 )
 
@@ -47,12 +48,17 @@ def split_dataset(cfg):
 
 def feature_engineering(df, is_test):
     if is_test:
-        df = df.with_columns(pl.lit(1).alias("time"))
+        df = df.with_columns(
+            pl.lit(-1).alias("location"),
+            pl.lit(-1).alias("timestamp"),
+        )
     else:
         df = df.with_columns(
-            (pl.col("sample_id").str.extract(r"(\d+)").str.to_integer() // 1261440 / 8).alias("time")
+            # (pl.col("sample_id").str.extract(r"(\d+)").str.to_integer() // 1261440 / 8).alias("time")
+            (pl.col("sample_id").str.extract(r"(\d+)").str.to_integer() % NUM_GRID).alias("location"),
+            (pl.col("sample_id").str.extract(r"(\d+)").str.to_integer() // NUM_GRID).alias("timestamp"),
         )
-    add_feats = ["time"]
+    add_feats = ["location", "timestamp"]
     return df, add_feats
 
 
