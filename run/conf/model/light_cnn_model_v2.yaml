@@ -4,8 +4,10 @@ params: {
   output_size: -1,
   out_channels: 128,   # 256
   kernel_size: 3,
-  num_layers: 2,       # 7
+  num_layers: 3,       # 7
   activation: swish,   # relu, eluもあり
+  use_aux: False,
+  use_positional_embedding: False,
   num_scalar_feats: 16,
   num_vector_feats: 9,
 }

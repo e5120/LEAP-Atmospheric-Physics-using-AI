@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from leap.model import BaseModel
-from leap.model.modules import get_act_fn
+from leap.model.modules import get_act_fn, PositionalEncoding
 from leap.model.unet_with_se_model import SEBlock
 
 
@@ -38,10 +38,14 @@ class Conv1dBlock(nn.Module):
 
 class LightCNNModelV2(BaseModel):
     def __init__(self, input_size, output_size, out_channels=64, kernel_size=3, num_layers=3,
-                 activation="relu", num_scalar_feats=16, num_vector_feats=9, ignore_mask=None):
-        super().__init__(ignore_mask=ignore_mask)
+                 activation="relu", use_positional_embedding=False, num_scalar_feats=16, num_vector_feats=9,
+                 ignore_mask=None, use_aux=False):
+        super().__init__(ignore_mask=ignore_mask, use_aux=use_aux)
         num_feats = num_scalar_feats + num_vector_feats
         self.conv = nn.Conv1d(num_feats, out_channels, 1, padding="same")
+        self.use_pos_emb = use_positional_embedding
+        if self.use_pos_emb:
+            self.pos_emb = PositionalEncoding(out_channels, max_len=60, pos_type="sinusoid")
         self.conv_blocks = nn.ModuleList([
             Conv1dBlock(out_channels, kernel_size, activation=activation)
             for _ in range(num_layers)
@@ -52,8 +56,11 @@ class LightCNNModelV2(BaseModel):
         v = batch["x_vector"]  # (bs, num_features, seq_len)
         s = batch["x_scalar"].unsqueeze(dim=-1).repeat(1, 1, v.size(-1))  # (bs, num_features, seq_len)
         x = torch.cat([v, s], dim=1)
-
         out = self.conv(x)  # (bs, ch, seq_len)
+        if self.use_pos_emb:
+            out = out.permute(0, 2, 1)
+            out = self.pos_emb(out)
+            out = out.permute(0, 2, 1)
         for layer in self.conv_blocks:
             out = layer(out)
         out = self.conv2(out)
