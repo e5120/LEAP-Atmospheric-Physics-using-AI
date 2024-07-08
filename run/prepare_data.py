@@ -91,6 +91,7 @@ def generate_dataset(cfg):
     test_df = pl.read_parquet(filename)
     test_df, add_feats = feature_engineering(test_df, True)
     test_df = normalize(test_df, scaler_method, data_dir)
+    test_df = test_df.with_columns(pl.col(pl.Float64).cast(pl.Float32))
     for col in IN_VECTOR_COLUMNS:
         test_df = test_df.with_columns(pl.concat_list(f"^{col}_\d+$").alias(col))
     test_df = test_df.select(["sample_id"] + IN_SCALAR_COLUMNS + IN_VECTOR_COLUMNS + add_feats)
