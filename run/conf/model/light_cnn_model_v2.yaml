@@ -6,6 +6,8 @@ params: {
   kernel_size: 3,
   num_layers: 3,       # 7
   activation: swish,   # relu, eluもあり
+  conv_expand: 4,
+  num_se_layers: 3,
   use_aux: False,
   aux_weight: 0.1,
   use_positional_embedding: False,

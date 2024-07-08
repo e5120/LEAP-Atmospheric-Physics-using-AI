@@ -8,22 +8,24 @@ from leap.model.unet_with_se_model import SEBlock
 
 
 class Conv1dBlock(nn.Module):
-    def __init__(self, num_channels, kernel_size, activation="relu"):
+    def __init__(self, num_channels, kernel_size, activation="relu", expand=4, num_se_layers=3):
         super().__init__()
+        out_channels1 = num_channels * expand
+        out_channels2 = num_channels * expand // 2
         self.layers = nn.Sequential(
-            nn.Conv1d(num_channels, 4*num_channels, kernel_size, padding="same"),
+            nn.Conv1d(num_channels, out_channels1, kernel_size, padding="same"),
             get_act_fn(activation),
-            nn.BatchNorm1d(4*num_channels),
-            nn.Conv1d(4*num_channels, 2*num_channels, kernel_size, padding="same"),
+            nn.BatchNorm1d(out_channels1),
+            nn.Conv1d(out_channels1, out_channels2, kernel_size, padding="same"),
             get_act_fn(activation),
-            nn.BatchNorm1d(2*num_channels),
-            nn.Conv1d(2*num_channels, num_channels, kernel_size, padding="same"),
+            nn.BatchNorm1d(out_channels2),
+            nn.Conv1d(out_channels2, num_channels, kernel_size, padding="same"),
             get_act_fn(activation),
             nn.BatchNorm1d(num_channels),
         )
         self.se_layers = nn.Sequential(*[
             SEBlock(num_channels, num_channels, se_type="mul")
-            for _ in range(3)
+            for _ in range(num_se_layers)
         ])
         self.bn = nn.BatchNorm1d(num_channels)
 
@@ -38,7 +40,8 @@ class Conv1dBlock(nn.Module):
 
 class LightCNNModelV2(BaseModel):
     def __init__(self, input_size, output_size, out_channels=64, kernel_size=3, num_layers=3,
-                 activation="relu", use_positional_embedding=False, num_scalar_feats=16, num_vector_feats=9,
+                 activation="relu", use_positional_embedding=False, conv_expand=4, num_se_layers=3,
+                 num_scalar_feats=16, num_vector_feats=9,
                  ignore_mask=None, use_aux=False, aux_weight=0.1):
         super().__init__(ignore_mask=ignore_mask, use_aux=use_aux, aux_weight=aux_weight)
         num_feats = num_scalar_feats + num_vector_feats
@@ -47,7 +50,12 @@ class LightCNNModelV2(BaseModel):
         if self.use_pos_emb:
             self.pos_emb = PositionalEncoding(out_channels, max_len=60, pos_type="sinusoid")
         self.conv_blocks = nn.ModuleList([
-            Conv1dBlock(out_channels, kernel_size, activation=activation)
+            Conv1dBlock(
+                out_channels, kernel_size,
+                activation=activation,
+                expand=conv_expand,
+                num_se_layers=num_se_layers,
+            )
             for _ in range(num_layers)
         ])
         self.conv2 = nn.Conv1d(out_channels, 14, 1, padding="same")
