@@ -21,6 +21,8 @@ def get_act_fn(activation):
         return nn.PReLU()
     elif activation == 'elu':
         return nn.ELU()
+    elif activation == "sigmoid":
+        return nn.Sigmoid
     else:
         raise NotImplementedError
 
@@ -88,31 +90,6 @@ class GLUMlp(nn.Module):
         return x
 
 
-class Conv1dSame(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, groups=1, dilation=1, bias=True):
-        super().__init__()
-        assert dilation==1
-        self.kernel_size = kernel_size
-        self.stride = stride
-        self.conv = nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding=0, dilation=1, groups=groups, bias=bias)
-
-    def calc_same_pad(self, i, k, s):
-        # return max((math.ceil(i / s) - 1) * s + (k - 1) * d + 1 - i, 0)
-        if i%s == 0:
-            pad = max(k - s, 0)
-        else:
-            pad = max(k - (i % s), 0)
-        return pad
-
-    def forward(self, inputs):
-        x = inputs
-        i = x.size()[-1]
-        pad = self.calc_same_pad(i=i, k=self.kernel_size, s=self.stride)
-
-        x = F.pad(x, [pad//2, pad - pad// 2])
-        return self.conv(x)
-
-
 def drop_path(x, drop_prob: float = 0., training: bool = False, scale_by_keep: bool = True):
     if drop_prob == 0. or not training:
         return x
@@ -139,20 +116,18 @@ class ScaleBiasLayer(nn.Module):
         super().__init__()
         self.adaptive_scale = adaptive_scale
         if adaptive_scale:
-            self.scale = nn.Parameter(torch.ones(d_model))
-            self.bias = nn.Parameter(torch.zeros(d_model))
+            self.scale = nn.Parameter(torch.ones(1, 1, d_model))
+            self.bias = nn.Parameter(torch.zeros(1, 1, d_model))
         else:
-            self.register_buffer('scale', torch.ones(d_model), persistent=True)
-            self.register_buffer('bias', torch.zeros(d_model), persistent=True)
+            self.register_buffer('scale', torch.ones(1, 1, d_model), persistent=True)
+            self.register_buffer('bias', torch.zeros(1, 1, d_model), persistent=True)
 
     def forward(self, x):
-        scale = self.scale.view(1, 1, -1)
-        bias = self.bias.view(1, 1, -1)
-        return x * scale + bias
+        return x * self.scale + self.bias
 
 
 class Conv1DBlock(nn.Module):
-    def __init__(self, dim, kernel_size=3, groups=4, dilation=1, stride=1,
+    def __init__(self, dim, kernel_size=3, groups=4, stride=1,
                  conv_dropout=0.0, mlp_dropout=0.0, drop_path=0.0,
                  expand=4, activation='swish', prenorm=True):
         super().__init__()
@@ -161,15 +136,15 @@ class Conv1DBlock(nn.Module):
 
         self.norm1 = nn.LayerNorm(dim)
         self.norm2 = nn.LayerNorm(dim)
-        self.glu = GLU(dim=-1, activation=activation)
         self.expand_conv = nn.Linear(dim, 2*dim)
-        self.conv = Conv1dSame(dim, dim, kernel_size=kernel_size, groups=groups)
-        # self.conv_norm = nn.BatchNorm1d(dim, momentum=0.05)
-        self.conv_norm = nn.BatchNorm1d(dim)
+        self.glu = GLU(dim=-1, activation=activation)
+        self.conv = nn.Conv1d(dim, dim, kernel_size=kernel_size, padding="same", groups=groups)
+        self.conv_norm = nn.BatchNorm1d(dim, momentum=0.05)
+        # self.conv_norm = nn.BatchNorm1d(dim)
         self.conv_act = get_act_fn(activation)
+        self.conv_dropout = nn.Dropout(conv_dropout)
         self.conv_proj = nn.Linear(dim, dim)
         self.mlp = GLUMlp(dim, expand, mlp_dropout, activation=activation)
-        self.conv_dropout = nn.Dropout(conv_dropout)
         # self.mlp_dropout = nn.Dropout(mlp_dropout)
         self.drop1 = DropPath(drop_path)
         self.drop2 = DropPath(drop_path)
@@ -237,17 +212,19 @@ class AltAttention(nn.Module):
 
 
 class AltBlock(nn.Module):
-    def __init__(self, dim=256, num_heads=4, expand=4, attn_dropout=0.2, mlp_dropout=0.2, drop_path=0., activation='gelu', prenorm=True):
+    def __init__(self, dim=256, num_heads=4, expand=4, attn_dropout=0.2,
+                 mlp_dropout=0.2, drop_path=0., activation='gelu', prenorm=True):
         super().__init__()
+        self.prenorm = prenorm
         self.norm1 = nn.LayerNorm(dim)
         self.self_attn = AltAttention(dim=dim, num_heads=num_heads, dropout=attn_dropout)
+        # self.self_attn = nn.MultiheadAttention(dim, num_heads, dropout=attn_dropout)
         self.drop1 = DropPath(drop_path)
 
         self.norm2 = nn.LayerNorm(dim)
         self.mlp = GLUMlp(dim, expand, dropout=mlp_dropout, activation=activation)
         self.drop2 = DropPath(drop_path)
 
-        self.prenorm = prenorm
         self.attn_scale = ScaleBiasLayer(dim, adaptive_scale=True)
         self.mlp_scale = ScaleBiasLayer(dim, adaptive_scale=True)
 
@@ -256,6 +233,7 @@ class AltBlock(nn.Module):
         if self.prenorm:
             x = self.norm1(x)
         x = self.self_attn(x)
+        # x, _ = self.self_attn(x, x, x)
         x = self.drop1(x)
         x = self.attn_scale(x)
         x = x + inputs
@@ -286,7 +264,6 @@ class SqueezeformerBlock(nn.Module):
                 kernel_size=kernel_size,
                 groups=groups,
                 stride=1,
-                dilation=1,
                 conv_dropout=conv_dropout,
                 mlp_dropout=mlp_dropout,
                 drop_path=drop_path,
@@ -310,13 +287,12 @@ class SqueezeformerBlock(nn.Module):
             for _ in range(num_attn_block)
         ])
 
-    def forward(self, inputs):
-        x = inputs
+    def forward(self, x):
         # 下の順番どっちがいいのかわからない
-        for block in self.attn_blocks:
-            x = block(x)
-        for block in self.conv_blocks:
-            x = block(x)
+        for attn_block in self.attn_blocks:
+            x = attn_block(x)
+        for conv_block in self.conv_blocks:
+            x = conv_block(x)
         return x
 
 
