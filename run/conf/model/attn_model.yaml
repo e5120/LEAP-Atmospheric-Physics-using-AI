@@ -6,9 +6,11 @@ params: {
   nhead: 8,
   dim_feedforward: 512,
   num_layers: 8,
-  hidden_sizes: [512, 256],
+  hidden_sizes: [],
   p: 0.1,
+  use_positional_embedding: True,
   pos_type: "embedding",  # embedding|sinusoid
+  use_aux: False,
   num_scalar_feats: 16,
   num_vector_feats: 9,
 }
