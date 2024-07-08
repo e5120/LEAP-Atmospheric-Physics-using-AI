@@ -39,8 +39,8 @@ class Conv1dBlock(nn.Module):
 class LightCNNModelV2(BaseModel):
     def __init__(self, input_size, output_size, out_channels=64, kernel_size=3, num_layers=3,
                  activation="relu", use_positional_embedding=False, num_scalar_feats=16, num_vector_feats=9,
-                 ignore_mask=None, use_aux=False):
-        super().__init__(ignore_mask=ignore_mask, use_aux=use_aux)
+                 ignore_mask=None, use_aux=False, aux_weight=0.1):
+        super().__init__(ignore_mask=ignore_mask, use_aux=use_aux, aux_weight=aux_weight)
         num_feats = num_scalar_feats + num_vector_feats
         self.conv = nn.Conv1d(num_feats, out_channels, 1, padding="same")
         self.use_pos_emb = use_positional_embedding

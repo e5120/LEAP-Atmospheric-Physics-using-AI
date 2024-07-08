@@ -7,6 +7,7 @@ params: {
   num_layers: 3,       # 7
   activation: swish,   # relu, eluもあり
   use_aux: False,
+  aux_weight: 0.1,
   use_positional_embedding: False,
   num_scalar_feats: 16,
   num_vector_feats: 9,
