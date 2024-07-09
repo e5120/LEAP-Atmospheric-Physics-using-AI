@@ -297,15 +297,17 @@ class SqueezeformerBlock(nn.Module):
 
 
 class MLPBlock(nn.Module):
-    def __init__(self, input_size, output_size, hidden_sizes=[], p=0.0):
+    def __init__(self, input_size, output_size, hidden_sizes=[], p=0.0, activation="swish"):
         super().__init__()
         mlp_layers = []
         hidden_sizes = [input_size] + hidden_sizes
         for i in range(len(hidden_sizes)-1):
-            mlp_layers.append(nn.Linear(hidden_sizes[i], hidden_sizes[i+1]))
-            mlp_layers.append(nn.LayerNorm(hidden_sizes[i+1]))
-            mlp_layers.append(nn.LeakyReLU(inplace=True))
-            mlp_layers.append(nn.Dropout(p=p))
+            mlp_layers += [
+                nn.Linear(hidden_sizes[i], hidden_sizes[i+1]),
+                nn.LayerNorm(hidden_sizes[i+1]),
+                get_act_fn(activation),
+                nn.Dropout(p=p),
+            ]
         mlp_layers.append(nn.Linear(hidden_sizes[-1], output_size))
         self.mlp_layers = nn.Sequential(*mlp_layers)
 
