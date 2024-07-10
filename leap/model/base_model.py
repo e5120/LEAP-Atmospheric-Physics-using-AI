@@ -2,9 +2,6 @@ from abc import abstractmethod
 
 import torch.nn as nn
 
-from leap.model.modules import MLPBlock
-from leap.utils import NUM_GRID
-
 
 class BaseModel(nn.Module):
     def __init__(self, ignore_mask=None, alpha=0.5, use_aux=False, aux_weight=0.1):
@@ -15,7 +12,6 @@ class BaseModel(nn.Module):
         self.use_aux = use_aux
         if self.use_aux:
             self.aux_weight = aux_weight
-            self.loc_fc = MLPBlock(368, NUM_GRID, hidden_sizes=[512], p=0.1)
             self.aux_loss_fn = nn.CrossEntropyLoss()
 
     @abstractmethod
@@ -29,7 +25,7 @@ class BaseModel(nn.Module):
             loss = loss[:, self.ignore_mask]
         loss = loss.mean()
         if self.use_aux and self.training:
-            loc_logits = self.loc_fc(output["logits"])
+            loc_logits = self.aux_decoder(output["hidden_state"]).squeeze()
             loc_loss = self.aux_loss_fn(loc_logits, batch["aux"][:, 0].long())
             loss += self.aux_weight * loc_loss
         output["loss"] = loss
