@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from leap.model import BaseModel
 from leap.model.modules import get_act_fn, PositionalEncoding
 from leap.model.unet_with_se_model import SEBlock
+from leap.utils import NUM_GRID
 
 
 class Conv1dBlock(nn.Module):
@@ -33,7 +34,8 @@ class Conv1dBlock(nn.Module):
         out = self.layers(x)
         out = self.se_layers(out)
         # out = x + out + out.mean(dim=1, keepdim=True) + out.mean(dim=2, keepdim=True)
-        out = out + x + F.avg_pool1d(out, kernel_size=x.size(2))
+        # out = out + x + F.avg_pool1d(out, kernel_size=x.size(2))
+        out = out + x
         out = self.bn(out)
         return out
 
@@ -59,6 +61,11 @@ class LightCNNModelV2(BaseModel):
             for _ in range(num_layers)
         ])
         self.conv2 = nn.Conv1d(out_channels, 14, 1, padding="same")
+        if self.use_aux:
+            self.aux_decoder = nn.Sequential(
+                nn.Conv1d(out_channels, 1, 1, padding="same"),
+                nn.Linear(60, NUM_GRID),
+            )
 
     def forward(self, batch):
         v = batch["x_vector"]  # (bs, num_features, seq_len)
@@ -71,10 +78,12 @@ class LightCNNModelV2(BaseModel):
             out = out.permute(0, 2, 1)
         for layer in self.conv_blocks:
             out = layer(out)
+        hidden_state = out
         out = self.conv2(out)
         vector_out = out[:, :6].reshape(out.size(0), -1)
         scalar_out = F.avg_pool1d(out[:, 6:], kernel_size=out.size(2)).squeeze(-1)
         logits = torch.cat([scalar_out, vector_out], dim=1)
         return {
             "logits": logits,
+            "hidden_state": hidden_state,
         }
