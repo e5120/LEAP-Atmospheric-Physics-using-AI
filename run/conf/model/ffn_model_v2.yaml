@@ -4,6 +4,7 @@ params: {
   output_size: -1,
   hidden_sizes: [1024, 512, 512, 1024],
   dropout: 0.1,
+  activation: leakyrelu,
   num_scalar_feats: 16,
   num_vector_feats: 9,
 }

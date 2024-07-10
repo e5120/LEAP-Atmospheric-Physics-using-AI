@@ -21,8 +21,10 @@ def get_act_fn(activation):
         return nn.PReLU()
     elif activation == 'elu':
         return nn.ELU()
+    elif activation == "leakyrelu":
+        return nn.LeakyReLU()
     elif activation == "sigmoid":
-        return nn.Sigmoid
+        return nn.Sigmoid()
     else:
         raise NotImplementedError
 
