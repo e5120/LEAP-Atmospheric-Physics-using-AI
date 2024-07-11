@@ -19,7 +19,7 @@ defaults:
   - scheduler: cosine_with_restart_warmup
 
 output_dir: ~
-dataset_name: ~
+dataset_name: dataset_v6
 exp_name: dummy
 stage: train
 num_train_files: ~
@@ -36,7 +36,7 @@ trainer:
   precision: "16-mixed"
   # precision: 32
   # precision: 64
-  gradient_clip_val: ~
+  gradient_clip_val: 1.0
   accumulate_grad_batches: 1
   devices: [1]
   val_check_interval: 0.25

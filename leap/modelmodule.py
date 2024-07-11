@@ -36,8 +36,7 @@ class LeapModelModule(L.LightningModule):
         self.ignore_mask = ignore_mask
         self.model = getattr(leap.model, cfg.model.name)(ignore_mask=ignore_mask, **cfg.model.params)
         print(self.model)
-        self.output_size = cfg.model.params.output_size
-        self.metrics = R2Score(self.output_size, multioutput="raw_values")
+        self.metrics = R2Score(cfg.model.params.output_size, multioutput="raw_values")
 
     def forward(self, batch):
         return self.model(batch)
@@ -81,7 +80,7 @@ class LeapModelModule(L.LightningModule):
         if best_score is None or \
            (mode == "max" and val_logs[self.monitor] >= best_score) or \
            (mode == "min" and val_logs[self.monitor] <= best_score):
-            broken_label_columns = self.label_columns[broken_mask.detach().to("cpu").numpy()]
+            broken_label_columns = self.label_columns[broken_mask.detach().cpu().numpy()]
             with open(Path(self.output_dir, "broken_columns.pkl"), "wb") as f:
                 pickle.dump(broken_label_columns, f)
             each_r2 = {}
