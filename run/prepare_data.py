@@ -23,7 +23,7 @@ def split_dataset(cfg):
     data_dir = Path(cfg.data_dir)
     output_dir = Path(cfg.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    if list(data_dir.glob("raw_train*")):
+    if list(output_dir.glob("raw_train*")):
         print("already exist")
         return
     print("splitting dataset")
@@ -54,7 +54,7 @@ def feature_engineering(df, is_test):
         )
     else:
         df = df.with_columns(
-            # (pl.col("sample_id").str.extract(r"(\d+)").str.to_integer() // 1261440 / 8).alias("time")
+            # (pl.col("sample_id").str.extract(r"(\d+)").str.to_integer() // 1261440 / 8).alias("time"),
             (pl.col("sample_id").str.extract(r"(\d+)").str.to_integer() % NUM_GRID).alias("location"),
             (pl.col("sample_id").str.extract(r"(\d+)").str.to_integer() // NUM_GRID).alias("timestamp"),
         )
