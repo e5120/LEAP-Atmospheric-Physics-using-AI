@@ -19,6 +19,8 @@ params: {
   momentum: 0.1,
   eps: 1.0e-05,
   bias: False,
+  use_aux: False,
+  aux_weight: 0.1,
   delta: 1.0,
 }
 collate_fn: "sequential_collate_fn"
