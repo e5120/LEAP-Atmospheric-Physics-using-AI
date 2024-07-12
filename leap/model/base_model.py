@@ -4,11 +4,10 @@ import torch.nn as nn
 
 
 class BaseModel(nn.Module):
-    def __init__(self, ignore_mask=None, alpha=0.5, use_aux=False, aux_weight=0.1):
+    def __init__(self, ignore_mask=None, use_aux=False, aux_weight=0.1, delta=1.0):
         super().__init__()
         self.ignore_mask = ignore_mask
-        self.alpha = alpha
-        self.loss_fn = nn.SmoothL1Loss(reduction="none")
+        self.loss_fn = nn.HuberLoss(reduction="none", delta=delta)
         self.use_aux = use_aux
         if self.use_aux:
             self.aux_weight = aux_weight
@@ -25,8 +24,8 @@ class BaseModel(nn.Module):
             loss = loss[:, self.ignore_mask]
         loss = loss.mean()
         if self.use_aux and self.training:
-            loc_logits = self.aux_decoder(output["hidden_state"]).squeeze()
+            loc_logits = self.aux_decoder(output["hidden_state"])
             loc_loss = self.aux_loss_fn(loc_logits, batch["aux"][:, 0].long())
-            loss += self.aux_weight * loc_loss
+            loss = loss + self.aux_weight * loc_loss
         output["loss"] = loss
         return output
