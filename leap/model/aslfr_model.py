@@ -7,6 +7,7 @@ from einops import rearrange
 
 from leap.model import BaseModel
 from leap.model.modules import get_act_fn
+from leap.utils import NUM_GRID
 
 
 class ECA(nn.Module):
@@ -207,8 +208,8 @@ class ConvTransBlock(nn.Module):
 class ASLFRModel(BaseModel):
     def __init__(self, input_size, output_size, dims, num_layers=5, kernel_sizes=[5, 3, 1], ch_kernel_size=5, num_heads=4,
                  conv_expand=2, attn_expand=2, conv_dropout=0.2, attn_dropout=0.2, ffn_dropout=0.2, head_dropout=0.4, activation="swish",
-                 use_pos_emb=False, pos_type="sinusoid", momentum=0.1, eps=1e-5, bias=False, ignore_mask=None, delta=1.0):
-        super().__init__(ignore_mask=ignore_mask, delta=delta)
+                 use_pos_emb=False, pos_type="sinusoid", momentum=0.1, eps=1e-5, bias=False, ignore_mask=None, use_aux=False, aux_weight=0.1, delta=1.0):
+        super().__init__(ignore_mask=ignore_mask, use_aux=use_aux, aux_weight=aux_weight, delta=delta)
         in_channels, out_channels = 25, 14
         self.stem_conv = nn.Conv1d(in_channels, dims, 1, bias=bias)
         self.bn = nn.BatchNorm1d(dims, momentum=momentum)
@@ -242,6 +243,13 @@ class ASLFRModel(BaseModel):
             nn.Dropout(p=head_dropout),
             nn.Linear(2*dims, out_channels),
         )
+        if self.use_aux:
+            self.aux_decoder = nn.Sequential(
+                nn.AdaptiveAvgPool1d(1),
+                nn.Flatten(),
+                nn.Linear(dims, NUM_GRID),
+            )
+
 
     def forward(self, batch):
         v = batch["x_vector"]  # (bs, 9, 60)
@@ -252,6 +260,7 @@ class ASLFRModel(BaseModel):
         out = self.bn(out)
         out = out.permute(0, 2, 1)
         out = self.blocks(out)
+        hidden_state = out.permute(0, 2, 1)
         out = self.head(out)
         out = out.permute(0, 2, 1)
 
@@ -260,4 +269,5 @@ class ASLFRModel(BaseModel):
         logits = torch.cat([scalar_out, vector_out], dim=1)
         return {
             "logits": logits,
+            "hidden_state": hidden_state,
         }
