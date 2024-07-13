@@ -73,5 +73,6 @@ unused_output_cols:
   - ptend_q0002_24
   - ptend_q0002_25
   - ptend_q0002_26
+  - ptend_q0002_27
 
 ignore_mask: True

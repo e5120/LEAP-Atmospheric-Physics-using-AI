@@ -39,7 +39,7 @@ def post_process(df, cfg):
     )
     # 入力から陽に計算できるものはモデルの出力値を使わない
     # https://www.kaggle.com/competitions/leap-atmospheric-physics-ai-climsim/discussion/502484
-    n = 27
+    n = 28
     columns = [f"state_q0002_{i}" for i in range(n)]
     # columns += ["state_q0002_28"]
     input_df = pl.read_csv(Path(cfg.dir.data_dir, "test.csv"), columns=columns)
