@@ -11,9 +11,11 @@ from leap.utils import NUM_GRID
 
 
 class ECA(nn.Module):
-    def __init__(self, kernel_size=3):
+    # def __init__(self, kernel_size=3):
+    def __init__(self, dim):
         super().__init__()
-        self.conv = nn.Conv1d(1, 1, kernel_size, stride=1, padding="same", bias=False)
+        # self.conv = nn.Conv1d(1, 1, kernel_size, stride=1, padding="same", bias=False)
+        self.conv = nn.Linear(dim, dim, bias=False)
 
     def forward(self, x):
         # (bs, ch, seq)
@@ -53,7 +55,8 @@ class Conv1dBlock(nn.Module):
         self.ffn1 = nn.Linear(dim, expand*dim)
         self.dw_conv = DepthWiseConv1d(expand_dim, expand_dim, kernel_size=kernel_size)
         self.conv_norm = nn.BatchNorm1d(expand_dim, momentum=momentum)
-        self.eca = ECA(kernel_size=ch_kernel_size)
+        # self.eca = ECA(kernel_size=ch_kernel_size)
+        self.eca = ECA(expand_dim)
         self.ffn2 = nn.Linear(expand_dim, dim)
         self.dropout = nn.Dropout(p=dropout)
 
@@ -167,7 +170,7 @@ class TransformerBlock(nn.Module):
 
 
 class ConvTransBlock(nn.Module):
-    def __init__(self, dims, kernel_sizes=[5, 3, 1], ch_kernel_size=5, num_heads=4, conv_expand=2, attn_expand=2,
+    def __init__(self, dims, kernel_sizes=[5, 3, 1], ch_kernel_size=5, num_attn_layers=1, num_heads=4, conv_expand=2, attn_expand=2,
                  conv_dropout=0.2, attn_dropout=0.2, ffn_dropout=0.2, activation="swish", use_pos_emb=False, pos_type="sinusoid",
                  momentum=0.1, eps=1e-5, bias=False):
         super().__init__()
@@ -183,15 +186,18 @@ class ConvTransBlock(nn.Module):
             )
             for kernel_size in kernel_sizes
         ])
-        self.trans_block = TransformerBlock(
-            dims, num_heads,
-            expand=attn_expand,
-            attn_dropout=attn_dropout,
-            ffn_dropout=ffn_dropout,
-            activation=activation,
-            bias=bias,
-            eps=eps,
-        )
+        self.trans_blocks = nn.Sequential(*[
+            TransformerBlock(
+                dims, num_heads,
+                expand=attn_expand,
+                attn_dropout=attn_dropout,
+                ffn_dropout=ffn_dropout,
+                activation=activation,
+                bias=bias,
+                eps=eps,
+            )
+            for _ in range(num_attn_layers)
+        ])
         self.use_pos_emb = use_pos_emb
         if self.use_pos_emb:
             self.pos_encoding = PositionalEncoding(dims, pos_type=pos_type)
@@ -201,12 +207,13 @@ class ConvTransBlock(nn.Module):
         x = self.conv_blocks(x)
         if self.use_pos_emb:
             x = self.pos_encoding(x)
-        x = self.trans_block(x)
+        x = self.trans_blocks(x)
         return x
 
 
 class ASLFRModel(BaseModel):
-    def __init__(self, input_size, output_size, dims, num_layers=5, kernel_sizes=[5, 3, 1], ch_kernel_size=5, num_heads=4,
+    def __init__(self, input_size, output_size, dims, num_layers=5, kernel_sizes=[5, 3, 1],
+                 ch_kernel_size=5, num_attn_layers=1, num_heads=4,
                  conv_expand=2, attn_expand=2, conv_dropout=0.2, attn_dropout=0.2, ffn_dropout=0.2, head_dropout=0.4, activation="swish",
                  use_pos_emb=False, pos_type="sinusoid", momentum=0.1, eps=1e-5, bias=False, ignore_mask=None, use_aux=False, aux_weight=0.1, delta=1.0):
         super().__init__(ignore_mask=ignore_mask, use_aux=use_aux, aux_weight=aux_weight, delta=delta)
@@ -221,6 +228,7 @@ class ASLFRModel(BaseModel):
                     dims,
                     kernel_sizes=kernel_sizes,
                     ch_kernel_size=ch_kernel_size,
+                    num_attn_layers=num_attn_layers,
                     num_heads=num_heads,
                     conv_expand=conv_expand,
                     attn_expand=attn_expand,
@@ -236,6 +244,8 @@ class ASLFRModel(BaseModel):
                 )
             )
         self.blocks = nn.Sequential(*blocks)
+
+        self.rnn = nn.GRU(dims, dims//2, batch_first=True, num_layers=1, bidirectional=True)
 
         self.head = nn.Sequential(
             nn.Linear(dims, 2*dims),
@@ -260,6 +270,7 @@ class ASLFRModel(BaseModel):
         out = self.bn(out)
         out = out.permute(0, 2, 1)
         out = self.blocks(out)
+        out, _ = self.rnn(out)
         hidden_state = out.permute(0, 2, 1)
         out = self.head(out)
         out = out.permute(0, 2, 1)

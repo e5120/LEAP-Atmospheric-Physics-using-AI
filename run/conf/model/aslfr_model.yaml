@@ -2,11 +2,12 @@ name: "ASLFRModel"
 params: {
   input_size: -1,
   output_size: -1,
-  dims: 64,
-  num_layers: 5,
-  kernel_sizes: [3, 3, 3],
+  dims: 32,
+  num_layers: 3,
+  kernel_sizes: [3, 3, 3],  # [7,5,3]
   ch_kernel_size: 5,
-  num_heads: 4,
+  num_attn_layers: 1,
+  num_heads: 4,  # 4 or 8
   conv_expand: 2,
   attn_expand: 2,
   conv_dropout: 0.0,
@@ -20,7 +21,7 @@ params: {
   eps: 1.0e-05,
   bias: False,
   use_aux: False,
-  aux_weight: 0.1,
+  aux_weight: 0.05,
   delta: 1.0,
 }
 collate_fn: "sequential_collate_fn"
