@@ -102,8 +102,10 @@ def feature_engineering(df, meta_df, is_test):
             pl.lit(7).alias("year"),
             pl.col("timestamp").dt.month().alias("month"),
             pl.col("timestamp").dt.hour().alias("hour"),
+            pl.col("timestamp").dt.ordinal_day().alias("day"),
         )
         df = df.drop(["timestamp"])
+        df = df.sort("sample_id")
     else:
         df = df.join(meta_df, on="pbuf_ozone_2", how="left")
         assert len(df) == len(df.drop_nulls())
@@ -111,9 +113,10 @@ def feature_engineering(df, meta_df, is_test):
             (pl.col("sample_id").str.extract(r"(\d+)").str.to_integer() // 1441646).alias("year"),
             pl.col("timestamp").dt.month().alias("month"),
             pl.col("timestamp").dt.hour().alias("hour"),
+            pl.col("timestamp").dt.ordinal_day().alias("day"),
         )
         df = df.drop(["timestamp"])
-    add_feats = ["location", "lat", "lon", "year", "month", "hour"]
+    add_feats = ["location", "lat", "lon", "year", "month", "hour", "day"]
     return df, add_feats
 
 

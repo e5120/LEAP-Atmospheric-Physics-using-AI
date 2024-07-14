@@ -19,6 +19,7 @@ IN_AUX_COLUMNS = [
     # "time",
     # "sin_time", "cos_time",
     "location", "lat", "lon", "year", "month", "hour",
+    # "location", "lat", "lon", "year", "month", "hour", "day",
 ]
 IN_COLUMNS = IN_SCALAR_COLUMNS + IN_VECTOR_COLUMNS
 OUT_SCALAR_COLUMNS = [

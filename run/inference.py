@@ -103,6 +103,7 @@ def main(cfg):
                 for i, label_name in enumerate(label_columns)
             ]
         )
+        submit_df = submit_df.sort("sample_id")
         submit_df = post_process(submit_df, cfg)
         submit_df.write_csv(Path(output_dir, f"submission_{model_path.stem}.csv"))
 
