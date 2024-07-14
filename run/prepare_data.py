@@ -42,6 +42,12 @@ def split_dataset(cfg):
             start += n_data
             n_data = 0
             dfs = []
+    if len(dfs):
+        df = pd.concat(dfs).reset_index(drop=True)
+        end = start + n_data - 1
+        df.to_parquet(Path(output_dir, f"raw_train_{start}_{end}.parquet"))
+        start += n_data
+        n_data = 0
     test_df = pl.read_csv(Path(data_dir, "test.csv"))
     test_df.write_parquet(Path(output_dir, "raw_test.parquet"))
 
