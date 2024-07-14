@@ -52,19 +52,68 @@ def split_dataset(cfg):
     test_df.write_parquet(Path(output_dir, "raw_test.parquet"))
 
 
-def feature_engineering(df, is_test):
+def load_meta_df(data_dir):
+    meta_df = (
+        pl.read_csv(Path(data_dir, "pbuf_ozone_2_mapping.csv"))
+        .rename({"climsim_location_id": "location"})
+        .with_columns(pl.col("timestamp").str.to_datetime())
+    )
+    return meta_df
+
+
+def feature_engineering(df, meta_df, is_test):
     if is_test:
-        df = df.with_columns(
-            pl.lit(-1).alias("location"),
-            pl.lit(-1).alias("timestamp"),
+        df = df.join(meta_df, on="pbuf_ozone_2", how="left")
+        merged_df = df.filter(~pl.col("lat").is_null())
+        unmerged_df = df.filter(pl.col("lat").is_null()).drop(["location", "timestamp", "lat", "lon"])
+        sub_meta_df = meta_df.filter(
+            (pl.col("timestamp").dt.hour().is_in([0, 8, 16])) & (pl.col("timestamp").dt.minute() == 0)
         )
+        unmerged_df = (
+            unmerged_df
+            .with_columns(pl.col("pbuf_ozone_2").round(18))
+            .join(
+                sub_meta_df.with_columns(pl.col("pbuf_ozone_2").round(18)),
+                on="pbuf_ozone_2",
+                how="left",
+            )
+        )
+        merged_df = pl.concat([
+            merged_df,
+            unmerged_df.filter(~pl.col("lat").is_null()),
+        ])
+        unmerged_df = unmerged_df.filter(pl.col("lat").is_null()).drop(["location", "timestamp", "lat", "lon"])
+        unmerged_df = (
+            unmerged_df
+            .with_columns(pl.col("pbuf_ozone_2").round(15))
+            .join(
+                sub_meta_df.with_columns(pl.col("pbuf_ozone_2").round(15)),
+                on="pbuf_ozone_2",
+                how="left",
+            )
+        )
+        merged_df = pl.concat([
+            merged_df,
+            unmerged_df.filter(~pl.col("lat").is_null()),
+        ])
+        assert len(df) == len(merged_df)
+        assert len(merged_df) == len(merged_df.drop_nulls())
+        df = merged_df.with_columns(
+            pl.lit(7).alias("year"),
+            pl.col("timestamp").dt.month().alias("month"),
+            pl.col("timestamp").dt.hour().alias("hour"),
+        )
+        df = df.drop(["timestamp"])
     else:
+        df = df.join(meta_df, on="pbuf_ozone_2", how="left")
+        assert len(df) == len(df.drop_nulls())
         df = df.with_columns(
-            # (pl.col("sample_id").str.extract(r"(\d+)").str.to_integer() // 1261440 / 8).alias("time"),
-            (pl.col("sample_id").str.extract(r"(\d+)").str.to_integer() % NUM_GRID).alias("location"),
-            (pl.col("sample_id").str.extract(r"(\d+)").str.to_integer() // NUM_GRID).alias("timestamp"),
+            (pl.col("sample_id").str.extract(r"(\d+)").str.to_integer() // 1441646).alias("year"),
+            pl.col("timestamp").dt.month().alias("month"),
+            pl.col("timestamp").dt.hour().alias("hour"),
         )
-    add_feats = ["location", "timestamp"]
+        df = df.drop(["timestamp"])
+    add_feats = ["location", "lat", "lon", "year", "month", "hour"]
     return df, add_feats
 
 
@@ -76,6 +125,7 @@ def generate_dataset(cfg):
         print("already exist")
         return
     print("generating dataset")
+    meta_df = load_meta_df(data_dir)
     scaler_method = {}
     for k, v in cfg.scaler.items():
         scaler_method[k] = list(v)
@@ -84,7 +134,7 @@ def generate_dataset(cfg):
     # train data
     for filename in tqdm(sorted(list(data_dir.glob("raw_train*")))):
         df = pl.read_parquet(filename)
-        df, add_feats = feature_engineering(df, False)
+        df, add_feats = feature_engineering(df, meta_df, False)
         df = normalize(df, scaler_method, data_dir)
         df = df.with_columns(pl.col(pl.Float64).cast(pl.Float32))
         for col in IN_VECTOR_COLUMNS + OUT_VECTOR_COLUMNS:
@@ -95,7 +145,7 @@ def generate_dataset(cfg):
     # test data
     filename = Path(data_dir, "raw_test.parquet")
     test_df = pl.read_parquet(filename)
-    test_df, add_feats = feature_engineering(test_df, True)
+    test_df, add_feats = feature_engineering(test_df, meta_df, True)
     test_df = normalize(test_df, scaler_method, data_dir)
     test_df = test_df.with_columns(pl.col(pl.Float64).cast(pl.Float32))
     for col in IN_VECTOR_COLUMNS:
