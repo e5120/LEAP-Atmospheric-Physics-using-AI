@@ -35,6 +35,7 @@ def single_collate_fn(batch, stage):
         )
     inputs = torch.concat(inputs, dim=1)
     aux = get_auxiliary_data(batch)
+    data = {"input": inputs, "aux": aux}
     if stage != "test":
         labels = []
         for col in OUT_COLUMNS:
@@ -42,16 +43,8 @@ def single_collate_fn(batch, stage):
                 torch.from_numpy(batch[col].reshape(batch[col].shape[0], -1))
             )
         labels = torch.concat(labels, dim=1)
-        return {
-            "input": inputs,
-            "labels": labels,
-            "aux": aux,
-        }
-    else:
-        return {
-            "input": inputs,
-            "aux": aux,
-        }
+        data["labels"] = labels
+    return data
 
 
 def sequential_collate_fn(batch, stage):
@@ -65,6 +58,7 @@ def sequential_collate_fn(batch, stage):
     scalars = torch.from_numpy(np.stack(scalars, axis=1))
     vectors = torch.from_numpy(np.stack(vectors, axis=1))
     aux = get_auxiliary_data(batch)
+    data = {"x_scalar": scalars, "x_vector": vectors, "aux": aux}
     if stage != "test":
         labels = []
         for col in OUT_COLUMNS:
@@ -72,15 +66,5 @@ def sequential_collate_fn(batch, stage):
                 torch.from_numpy(batch[col].reshape(batch[col].shape[0], -1))
             )
         labels = torch.concat(labels, dim=1)
-        return {
-            "x_scalar": scalars,
-            "x_vector": vectors,
-            "labels": labels,
-            "aux": aux,
-        }
-    else:
-        return {
-            "x_scalar": scalars,
-            "x_vector": vectors,
-            "aux": aux,
-        }
+        data["labels"] = labels
+    return data

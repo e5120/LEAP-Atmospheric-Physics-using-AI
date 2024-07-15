@@ -106,9 +106,6 @@ def read_tfrecord(example, stage):
 def get_dataset(files, batch_size=1024, stage="train"):
     AUTO = tf.data.experimental.AUTOTUNE
     ds = tf.data.TFRecordDataset(files, num_parallel_reads=AUTO, compression_type="GZIP")
-    # if stage in ["val", "test"]:
-    #     ds = ds.cache()
-    # ds = ds.repeat()
     if stage == "train":
         ds = ds.shuffle(1024 * 2)
         opt = tf.data.Options()
