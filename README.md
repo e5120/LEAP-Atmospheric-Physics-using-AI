@@ -9,6 +9,7 @@
 
 ```
 $ kaggle competitions download -c leap-atmospheric-physics-ai-climsim
+$ kaggle datasets download -d rkwasny/pbuf-ozone-2-mapping-csv  # If you use data leak
 ```
 
 ## Download this repository
@@ -25,8 +26,32 @@ $ export PYTHONPATH=.
 $ export DATA_DIR=/path/to/data
 $ python run/prepare_data.py phase=split data_dir=$DATA_DIR  # It takes about 1 hour
 $ cp resources/* $DATA_DIR
-$ python run/prepare_data.py phase=generate data_dir=$DATA_DIR # It takes about 1 hour
-$ python run/prepare_data.py phase=tfrecord data_dir=$DATA_DIR # It takes about 2 hours
+$ export DATASET=dataset_v1
+$ python run/prepare_data.py phase=generate data_dir=$DATA_DIR dataset_name=$DATASET # It takes about 1 hour
+$ python run/prepare_data.py phase=tfrecord data_dir=$DATA_DIR dataset_name=$DATASET # It takes about 2 hours
+```
+
+
+## LightCNN Model
+
+- CV :
+- public LB :
+- private LB : 
+
+```
+$ python run/train.py model=light_cnn_model_v2 exp_name=exp_light_cnn model.params.dims=256 moel.params.num_layers=7
+$ python run/inference.py --experimental-rerun=/path/to/repo/output/exp_light_cnn/single/.hydra/config.pickle
+```
+
+## ASLFR Model
+
+- CV :
+- public LB :
+- private LB : 
+
+```
+$ python run/train.py model=aslfr_model exp_name=exp_aslfr model.params.out_channels=256 moel.params.num_layers=6  model.params.conv_expand=4
+$ python run/inference.py --experimental-rerun=/path/to/repo/output/exp_aslfr/single/.hydra/config.pickle
 ```
 
 
