@@ -14,7 +14,6 @@ from leap.utils import (
     IN_VECTOR_COLUMNS,
     OUT_SCALAR_COLUMNS,
     OUT_VECTOR_COLUMNS,
-    NUM_GRID,
     normalize,
 )
 
