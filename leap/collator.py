@@ -11,6 +11,20 @@ def get_auxiliary_data(batch):
             torch.from_numpy(batch[col].reshape(batch[col].shape[0], -1))
         )
     aux = torch.concat(aux, dim=1)
+    aux = torch.stack(
+        [
+            aux[:, 1] / 90,  # lat
+            torch.cos(2 * torch.pi * aux[:, 2] / 360),  # lon
+            torch.sin(2 * torch.pi * aux[:, 2] / 360),  # lon
+            # torch.cos(2 * torch.pi * aux[:, 4] / 12),   # month
+            # torch.sin(2 * torch.pi * aux[:, 4] / 12),   # month
+            torch.cos(2 * torch.pi * aux[:, 5] / 24),   # hour
+            torch.sin(2 * torch.pi * aux[:, 5] / 24),   # hour
+            torch.cos(2 * torch.pi * aux[:, 6] / 366),  # day
+            torch.sin(2 * torch.pi * aux[:, 6] / 366),  # day
+        ],
+        dim=1,
+    )
     return aux
 
 
