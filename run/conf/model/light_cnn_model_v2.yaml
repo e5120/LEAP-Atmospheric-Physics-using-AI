@@ -8,11 +8,13 @@ params: {
   activation: swish,   # relu, eluもあり
   conv_expand: 4,
   num_se_layers: 3,
-  use_aux: False,
-  aux_weight: 0.1,
   use_positional_embedding: False,
   num_scalar_feats: 16,
   num_vector_feats: 9,
+  aux_weight: 0.01,
+  use_in_aux: True,
+  use_aux: False,
+  delta: 1.0,
 }
 collate_fn: "sequential_collate_fn"
 collate_params: {}

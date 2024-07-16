@@ -212,12 +212,15 @@ class ConvTransBlock(nn.Module):
 
 
 class ASLFRModel(BaseModel):
-    def __init__(self, input_size, output_size, dims, num_layers=5, kernel_sizes=[5, 3, 1],
+    def __init__(self, input_size, output_size, dims, num_layers=5, kernel_sizes=[3, 3, 3],
                  ch_kernel_size=5, num_attn_layers=1, num_heads=4,
                  conv_expand=2, attn_expand=2, conv_dropout=0.2, attn_dropout=0.2, ffn_dropout=0.2, head_dropout=0.4, activation="swish",
-                 use_pos_emb=False, pos_type="sinusoid", momentum=0.1, eps=1e-5, bias=False, ignore_mask=None, use_aux=False, aux_weight=0.1, delta=1.0):
+                 use_pos_emb=False, pos_type="sinusoid", momentum=0.1, eps=1e-5, bias=False, ignore_mask=None, use_aux=False, aux_weight=0.1, use_in_aux=True, delta=1.0):
         super().__init__(ignore_mask=ignore_mask, use_aux=use_aux, aux_weight=aux_weight, delta=delta)
         in_channels, out_channels = 25, 14
+        self.use_in_aux = use_in_aux
+        if self.use_in_aux:
+            in_channels += 7
         self.stem_conv = nn.Conv1d(in_channels, dims, 1, bias=bias)
         self.bn = nn.BatchNorm1d(dims, momentum=momentum)
 
@@ -245,6 +248,7 @@ class ASLFRModel(BaseModel):
             )
         self.blocks = nn.Sequential(*blocks)
 
+        dims = dims + in_channels
         self.rnn = nn.GRU(dims, dims//2, batch_first=True, num_layers=1, bidirectional=True)
 
         self.head = nn.Sequential(
@@ -264,12 +268,17 @@ class ASLFRModel(BaseModel):
     def forward(self, batch):
         v = batch["x_vector"]  # (bs, 9, 60)
         s = batch["x_scalar"].unsqueeze(dim=-1).repeat(1, 1, v.size(-1))  # (bs, 16, 60)
-        x = torch.cat([v, s], dim=1)  # (bs, 25, 60)
+        if self.use_in_aux:
+            a = batch["aux"].unsqueeze(dim=-1).repeat(1, 1, v.size(-1))   # (bs, 7, 60)
+            x = torch.cat([v, s, a], dim=1)
+        else:
+            x = torch.cat([v, s], dim=1)
 
         out = self.stem_conv(x)
         out = self.bn(out)
         out = out.permute(0, 2, 1)
         out = self.blocks(out)
+        out = torch.cat([out, x.permute(0, 2, 1)], dim=2)
         out, _ = self.rnn(out)
         hidden_state = out.permute(0, 2, 1)
         out = self.head(out)

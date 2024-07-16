@@ -43,10 +43,13 @@ class Conv1dBlock(nn.Module):
 class LightCNNModelV2(BaseModel):
     def __init__(self, input_size, output_size, out_channels=64, kernel_size=3, num_layers=3,
                  activation="relu", use_positional_embedding=False, conv_expand=4, num_se_layers=3,
-                 num_scalar_feats=16, num_vector_feats=9,
-                 ignore_mask=None, use_aux=False, aux_weight=0.1):
-        super().__init__(ignore_mask=ignore_mask, use_aux=use_aux, aux_weight=aux_weight)
+                 num_scalar_feats=16, num_vector_feats=9, ignore_mask=None,
+                 aux_weight=0.1, use_aux=False, use_in_aux=True, delta=1.0):
+        super().__init__(ignore_mask=ignore_mask, aux_weight=aux_weight, use_aux=use_aux, delta=delta)
         num_feats = num_scalar_feats + num_vector_feats
+        self.use_in_aux = use_in_aux
+        if self.use_in_aux:
+            num_feats += 7
         self.conv = nn.Conv1d(num_feats, out_channels, 1, padding="same")
         self.use_pos_emb = use_positional_embedding
         if self.use_pos_emb:
@@ -64,13 +67,18 @@ class LightCNNModelV2(BaseModel):
         if self.use_aux:
             self.aux_decoder = nn.Sequential(
                 nn.Conv1d(out_channels, 1, 1, padding="same"),
+                nn.Flatten(),
                 nn.Linear(60, NUM_GRID),
             )
 
     def forward(self, batch):
-        v = batch["x_vector"]  # (bs, num_features, seq_len)
-        s = batch["x_scalar"].unsqueeze(dim=-1).repeat(1, 1, v.size(-1))  # (bs, num_features, seq_len)
-        x = torch.cat([v, s], dim=1)
+        v = batch["x_vector"]  # (bs, 9, 60)
+        s = batch["x_scalar"].unsqueeze(dim=-1).repeat(1, 1, v.size(-1))  # (bs, 16, 60)
+        if self.use_in_aux:
+            a = batch["aux"].unsqueeze(dim=-1).repeat(1, 1, v.size(-1))   # (bs, 7, 60)
+            x = torch.cat([v, s, a], dim=1)
+        else:
+            x = torch.cat([v, s], dim=1)
         out = self.conv(x)  # (bs, ch, seq_len)
         if self.use_pos_emb:
             out = out.permute(0, 2, 1)

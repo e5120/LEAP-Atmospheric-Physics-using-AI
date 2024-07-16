@@ -22,6 +22,7 @@ params: {
   bias: False,
   use_aux: False,
   aux_weight: 0.05,
+  use_in_aux: True,
   delta: 1.0,
 }
 collate_fn: "sequential_collate_fn"
