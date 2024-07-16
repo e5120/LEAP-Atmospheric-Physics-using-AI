@@ -1,0 +1,17 @@
+name: "LightCNNModelV3"
+params: {
+  input_size: -1,
+  output_size: -1,
+  out_channels: [64, 128, 256],
+  kernel_sizes: [11, 7, 3],
+  num_layers: [11, 9, 7],
+  activation: swish,
+  conv_expand: 4,
+  num_se_layers: 3,
+  use_aux: False,
+  aux_weight: 0.1,
+  num_scalar_feats: 16,
+  num_vector_feats: 9,
+}
+collate_fn: "sequential_collate_fn"
+collate_params: {}

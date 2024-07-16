@@ -1,0 +1,27 @@
+name: "EncDecModel"
+params: {
+  input_size: -1,
+  output_size: -1,
+  dims: 64,
+  num_layers: 5,
+  kernel_sizes: [3, 3, 3],
+  ch_kernel_size: 5,
+  num_heads: 4,
+  conv_expand: 2,
+  attn_expand: 2,
+  conv_dropout: 0.0,
+  attn_dropout: 0.0,
+  ffn_dropout: 0.0,
+  head_dropout: 0.0,
+  activation: swish,
+  use_pos_emb: True,
+  pos_type: sinusoid,
+  momentum: 0.1,
+  eps: 1.0e-05,
+  bias: False,
+  use_aux: False,
+  aux_weight: 0.05,
+  delta: 1.0,
+}
+collate_fn: "sequential_collate_fn"
+collate_params: {}

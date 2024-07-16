@@ -1,0 +1,23 @@
+name: "ConvSqueezeFormerModel"
+params: {
+  input_size: -1,
+  output_size: -1,
+  input_dim: 128,
+  D: 2,
+  encoder_dim: 128,
+  num_attention_heads: 4,
+  num_layers: 4,
+  feed_forward_expansion_factor: 2,
+  conv_expansion_factor: 2,
+  input_dropout_p: 0.0,
+  feed_forward_dropout_p: 0.0,
+  attention_dropout_p: 0.0,
+  conv_dropout_p: 0.0,
+  conv_kernel_size: 3,
+  pool: gem,
+  gem_p_trainable: True,
+  reduce_layer_indices: [],
+  delta: 1.0,
+}
+collate_fn: "sequential_collate_fn"
+collate_params: {}

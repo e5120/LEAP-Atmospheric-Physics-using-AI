@@ -1,13 +1,11 @@
-name: "CNNModel"
+name: "MixCNNModel"
 params: {
   input_size: -1,
   output_size: -1,
-  out_channels: 128,
-  resnet_blocks: 9,
+  out_channels: 64,
   kernel_size: 3,
   num_scalar_feats: 16,
   num_vector_feats: 9,
-  dropout: 0.0,
 }
 collate_fn: "sequential_collate_fn"
 collate_params: {}
