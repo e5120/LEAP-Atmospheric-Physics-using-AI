@@ -8,24 +8,16 @@ from leap.model.modules import ResnetBlock
 
 class CNNModel(BaseModel):
     def __init__(self, input_size, output_size, out_channels=128, resnet_blocks=9,
-                 kernel_size=3, num_scalar_feats=16, num_vector_feats=9, seq_len=60,
+                 kernel_size=3, num_scalar_feats=16, num_vector_feats=9,
                  dropout=0.1, ignore_mask=None):
         super().__init__(ignore_mask=ignore_mask)
         num_feats = num_scalar_feats + num_vector_feats
-        self.conv = nn.Conv1d(
-            num_feats, out_channels, kernel_size=kernel_size,
-            stride=1,
-            padding="same",
-            bias=False,
-        )
+        self.conv = nn.Conv1d(num_feats, out_channels, 1, padding="same")
+        self.bn = nn.BatchNorm1d(out_channels)
         self.resnet_block = self._make_resnet_layer(
             out_channels, kernel_size, blocks=resnet_blocks, dilation=1, p=dropout,
         )
-        self.bn = nn.BatchNorm1d(out_channels)
-        # self.avg_pools = nn.AvgPool1d(kernel_size=down_sampling, stride=down_sampling, padding=down_sampling//2-1)
-        # resnet_features = out_channels * ((seq_len*len(kernel_sizes)//2 // 2**resnet_blocks -1) + 1)
-        # self.fc = nn.Linear(out_channels * seq_len, output_size)
-        self.fc = nn.Linear(out_channels, output_size)
+        self.conv2 = nn.Conv1d(out_channels, 14, 1, padding="same")
 
     def _make_resnet_layer(self, num_channels, kernel_size, blocks=9, dilation=1, p=0.0):
         layers = []
@@ -48,14 +40,18 @@ class CNNModel(BaseModel):
         x = torch.cat([v, s], dim=1)
 
         out = self.conv(x)  # (bs, ch, seq_len)
+        out = self.bn(F.silu(out))
         out = self.resnet_block(out)
-        out = self.bn(out)
-        out = F.relu(out)
-        # out = self.avg_pools(out)
-        out = F.avg_pool1d(out, kernel_size=x.size(2)).squeeze(dim=-1)
-        out = out.reshape(out.shape[0], -1)
-        logits = self.fc(out)
-
+        out = self.conv2(out)
+        flat_out = out[:, :-6]
+        seq_out = out[:, -6:]
+        logits = torch.cat(
+            [
+                flat_out.mean(dim=-1),
+                seq_out.reshape(seq_out.shape[0], -1),
+            ],
+            dim=1,
+        )
         return {
             "logits": logits,
         }

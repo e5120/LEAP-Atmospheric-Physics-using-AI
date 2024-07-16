@@ -9,6 +9,7 @@ class ConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, dilation=1):
         super().__init__()
         assert kernel_size % 2 == 1, kernel_size
+        self.bn = nn.BatchNorm1d(in_channels)
         self.conv = nn.Conv1d(
             in_channels, out_channels, kernel_size,
             stride=stride,
@@ -16,12 +17,11 @@ class ConvBlock(nn.Module):
             padding=kernel_size//2,
             bias=True,
         )
-        self.bn = nn.BatchNorm1d(out_channels)
 
     def forward(self, x):
-        x = self.conv(x)
         x = self.bn(x)
-        out = F.elu(x)
+        x = F.silu(x)
+        out = self.conv(x)
         return out
 
 
@@ -63,25 +63,25 @@ class REBlock(nn.Module):
 
 class UNetWithSEModel(BaseModel):
     def __init__(self, input_size, output_size, out_channels=64, kernel_size=3,
-                 depth=2, se_type="mul", upsample_mode="nearest",
+                 in_depth=2, out_depth=3, se_type="mul", upsample_mode="nearest",
                  num_scalar_feats=16, num_vector_feats=9, ignore_mask=None):
         super().__init__(ignore_mask=ignore_mask)
-        in_channels = num_scalar_feats + num_vector_feats
-        self.padding = nn.ZeroPad1d(2)
+        self.padding = nn.ZeroPad1d((4, 0))
         self.avg_pool1 = nn.AvgPool1d(kernel_size, stride=2, padding=kernel_size//2)
         self.avg_pool2 = nn.AvgPool1d(kernel_size, stride=4, padding=kernel_size//2)
         self.avg_pool3 = nn.AvgPool1d(kernel_size, stride=8, padding=kernel_size//2)
 
-        self.layer1 = self.make_down_layer(in_channels, out_channels, kernel_size, 1, depth, se_type)
-        self.layer2 = self.make_down_layer(out_channels, 2*out_channels, kernel_size, 2, depth, se_type)
-        self.layer3 = self.make_down_layer(2*out_channels+in_channels, 3*out_channels, kernel_size, 2, depth, se_type)
-        self.layer4 = self.make_down_layer(3*out_channels+in_channels, 4*out_channels, kernel_size, 2, depth, se_type)
-        self.layer5 = self.make_down_layer(4*out_channels+in_channels, 5*out_channels, kernel_size, 2, depth, se_type)
+        in_channels = num_scalar_feats + num_vector_feats
+        self.layer1 = self.make_down_layer(in_channels, out_channels, kernel_size, 1, in_depth, se_type)
+        self.layer2 = self.make_down_layer(out_channels, 2*out_channels, kernel_size, 2, in_depth, se_type)
+        self.layer3 = self.make_down_layer(2*out_channels+in_channels, 3*out_channels, kernel_size, 2, in_depth, se_type)
+        self.layer4 = self.make_down_layer(3*out_channels+in_channels, 4*out_channels, kernel_size, 2, in_depth, se_type)
+        self.layer5 = self.make_down_layer(4*out_channels+in_channels, 5*out_channels, kernel_size, 2, in_depth, se_type)
 
-        self.up_layer1 = ConvBlock(9*out_channels, 4*out_channels, kernel_size)
-        self.up_layer2 = ConvBlock(7*out_channels, 3*out_channels, kernel_size)
-        self.up_layer3 = ConvBlock(5*out_channels, 2*out_channels, kernel_size)
-        self.up_layer4 = ConvBlock(3*out_channels, out_channels, kernel_size)
+        self.up_layer1 = self.make_down_layer(9*out_channels, 4*out_channels, kernel_size, 1, out_depth, se_type)
+        self.up_layer2 = self.make_down_layer(7*out_channels, 3*out_channels, kernel_size, 1, out_depth, se_type)
+        self.up_layer3 = self.make_down_layer(5*out_channels, 2*out_channels, kernel_size, 1, out_depth, se_type)
+        self.up_layer4 = self.make_down_layer(3*out_channels, out_channels, kernel_size, 1, out_depth, se_type)
         self.upsample = nn.Upsample(scale_factor=2, mode=upsample_mode)
 
         self.out_conv = nn.Conv1d(out_channels, 14, kernel_size, padding="same")
@@ -89,7 +89,7 @@ class UNetWithSEModel(BaseModel):
     def make_down_layer(self, in_channels, out_channels, kernel_size, stride, depth, se_type):
         block = []
         block.append(ConvBlock(in_channels, out_channels, kernel_size=kernel_size, stride=stride))
-        for i in range(depth):
+        for _ in range(depth):
             block.append(
                 REBlock(out_channels, kernel_size, se_type=se_type)
             )
@@ -133,9 +133,9 @@ class UNetWithSEModel(BaseModel):
 
         up = self.upsample(up)       # 32 -> 64
         up = torch.cat([up, out_0], dim=1)
-        up  =self.up_layer4(up)
+        up = self.up_layer4(up)
 
-        out = self.out_conv(up[:, :, 2:-2])
+        out = self.out_conv(up[:, :, 4:])
         v_out = out[:, :6].reshape(out.size(0), -1)
         s_out = F.avg_pool1d(out[:, 6:], kernel_size=out.size(2)).squeeze(-1)
         logits = torch.cat([s_out, v_out], dim=1)

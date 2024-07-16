@@ -9,8 +9,8 @@ from leap.model.modules import MLPBlock, PositionalEncoding
 
 class AttnModel(BaseModel):
     def __init__(self, input_size, output_size, num_scalar_feats, num_vector_feats,
-                 d_model=512, nhead=8, dim_feedforward=2048, num_layers=6, hidden_sizes=[512,256],
-                 p=0.1, use_positional_embedding=True, pos_type="embedding", ignore_mask=None, use_aux=False):
+                 d_model=512, nhead=8, dim_feedforward=2048, num_layers=6, hidden_sizes=[],
+                 p=0.1, use_positional_embedding=True, pos_type="sinusoid", ignore_mask=None, use_aux=False):
         super().__init__(ignore_mask=ignore_mask, use_aux=use_aux)
         self.embedding = MLPBlock(num_scalar_feats+num_vector_feats, d_model)
         self.use_positional_embedding = use_positional_embedding
