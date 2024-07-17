@@ -2,7 +2,7 @@ name: "CNNModel"
 params: {
   input_size: -1,
   output_size: -1,
-  out_channels: 128,
+  out_channels: 256,
   resnet_blocks: 9,
   kernel_size: 3,
   num_scalar_feats: 16,

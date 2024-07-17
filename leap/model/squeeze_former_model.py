@@ -82,15 +82,10 @@ class SqueezeFormerModel(BaseModel):
             activation=activation,
             prenorm=prenorm,
         )
-        # self.dropout = nn.Dropout(p=dropout)
-        # self.rnn = nn.GRU(dim, dim//2, num_layers=1, batch_first=True, bidirectional=True)
         self.fc = nn.Sequential(
             nn.Dropout(p=dropout),
             nn.Linear(dim, 14),
         )
-        # self.fc = nn.Sequential(
-        #     nn.Conv1d(dim, 14, 1, padding="same"),
-        # )
 
     def forward(self, batch):
         v = batch["x_vector"]                                             # (bs,  9, 60)
@@ -98,8 +93,6 @@ class SqueezeFormerModel(BaseModel):
         x = torch.cat([v, s], dim=1)                                      # (bs, 25, 60)
         x = x.permute(0, 2, 1)
         x = self.encoder(x)[-1]
-        # x = self.dropout(x)
-        # x, _ = self.rnn(x)
         x = self.fc(x)
         x = x.permute(0, 2, 1)
         v_out = x[:, :6].reshape(x.size(0), -1)

@@ -4,7 +4,7 @@ params: {
   output_size: -1,
   dim: 256,
   kernel_size: 3,
-  groups: 1,
+  groups: ~,
   num_heads: 8,
   num_layers: 12,
   conv_expand: 4,

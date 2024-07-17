@@ -249,13 +249,13 @@ class ASLFRModel(BaseModel):
         self.blocks = nn.Sequential(*blocks)
 
         dims = dims + in_channels
-        self.rnn = nn.GRU(dims, dims//2, batch_first=True, num_layers=1, bidirectional=True)
+        self.rnn = nn.GRU(dims, dims, batch_first=True, num_layers=1, bidirectional=True)
 
         self.head = nn.Sequential(
-            nn.Linear(dims, 2*dims),
+            nn.Linear(2*dims, 4*dims),
             get_act_fn(activation),
             nn.Dropout(p=head_dropout),
-            nn.Linear(2*dims, out_channels),
+            nn.Linear(4*dims, out_channels),
         )
         if self.use_aux:
             self.aux_decoder = nn.Sequential(

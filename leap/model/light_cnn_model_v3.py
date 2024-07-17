@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from leap.model import BaseModel
-from leap.model.modules import get_act_fn, PositionalEncoding
+from leap.model.modules import get_act_fn
 from leap.model.unet_with_se_model import SEBlock
 
 
@@ -32,8 +32,6 @@ class Conv1dBlock(nn.Module):
     def forward(self, x):
         out = self.layers(x)
         out = self.se_layers(out)
-        # out = x + out + out.mean(dim=1, keepdim=True) + out.mean(dim=2, keepdim=True)
-        # out = out + x + F.avg_pool1d(out, kernel_size=x.size(2))
         out = out + x
         out = self.bn(out)
         return out

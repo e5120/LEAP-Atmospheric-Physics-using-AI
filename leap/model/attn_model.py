@@ -4,7 +4,6 @@ import torch.nn.functional as F
 
 from leap.model import BaseModel
 from leap.model.modules import MLPBlock, PositionalEncoding
-# from leap.model.light_cnn_model_v2 import Conv1dBlock
 
 
 class AttnModel(BaseModel):
@@ -26,12 +25,7 @@ class AttnModel(BaseModel):
             activation=nn.GELU(),
         )
         self.encoder = nn.TransformerEncoder(encoder, num_layers=num_layers)
-        # self.conv_blocks = nn.Sequential(*[
-        #     Conv1dBlock(d_model, d_model, activation="swish")
-        #     for _ in range(3)
-        # ])
         self.decoder = MLPBlock(d_model, 14, hidden_sizes=hidden_sizes)
-        # self.decoder = nn.Conv1d(d_model, 14, kernel_size=1, padding="same")
 
     def forward(self, batch):
         bs = batch["x_scalar"].size(0)
@@ -45,7 +39,6 @@ class AttnModel(BaseModel):
         out = self.encoder(emb)
         out = self.decoder(out)
         out = out.permute(0, 2, 1)
-        # out = self.conv_blocks(out)
         vector_out = out[:, :6].reshape(bs, -1)
         scalar_out = F.avg_pool1d(out[:, 6:], kernel_size=out.size(2)).squeeze(-1)
         logits = torch.cat([scalar_out, vector_out], dim=1)
