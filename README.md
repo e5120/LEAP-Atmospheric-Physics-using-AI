@@ -18,7 +18,7 @@
 |[LightCNN v2](#lightcnn-model-v2)|0.7638|0.76333|0.75920|
 |[LightCNN v3](#lightcnn-model-v3)|0.7546|0.75262|0.74656|
 |[SqueezeFormer](#squeezeformer-model)|0.7522|0.75250|0.74571|
-|[ASLFR](#aslfr-model)|0.7645|0.76416|0.76089|
+|[ASLFR](#aslfr-model)|**0.7645**|**0.76416**|**0.76089**|
 
 ## Computational Resouces
 - Intel(R) Core(TM) i5-8400 CPU @ 2.80GHz
