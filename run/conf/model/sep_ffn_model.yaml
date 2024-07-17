@@ -1,9 +1,0 @@
-name: "SeparateFFNModel"
-params: {
-  input_size: -1,
-  output_size: -1,
-  hidden_sizes: [128, 64, 128],
-  dropout: 0.1,
-}
-collate_fn: "simple_collate_fn"
-collate_params: {}
